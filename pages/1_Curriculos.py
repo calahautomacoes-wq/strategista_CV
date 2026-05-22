@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from pathlib import Path
 
 st.set_page_config(page_title="Currículos · StrategisTA", page_icon="📄", layout="wide")
 
@@ -9,50 +10,154 @@ st.markdown("""
   #MainMenu, footer, header {visibility: hidden;}
   .stApp { background: #EFF6FF; }
 
-  .page-title {
-    font-size: 1.8rem; font-weight: 800; color: #1E3A8A;
-    margin-bottom: 0.2rem;
+  /* Page header */
+  .page-header {
+    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 65%, #3B82F6 100%);
+    border-radius: 16px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.25);
   }
-  .page-sub { color: #64748B; margin-bottom: 1.5rem; }
+  .page-header h2 { color: white; font-size: 1.6rem; font-weight: 800; margin: 0; }
+  .page-header p  { color: #BFDBFE; margin: 0.2rem 0 0; font-size: 0.9rem; }
 
-  .cv-card {
-    background: white; border-radius: 16px; padding: 1.5rem 1.8rem;
-    box-shadow: 0 2px 16px rgba(37,99,235,0.09); border: 1px solid #DBEAFE;
-    margin-bottom: 1rem;
+  /* CV list item */
+  .cv-item {
+    background: white;
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.6rem;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 8px rgba(37,99,235,0.07);
+    transition: all 0.15s ease;
   }
-  .cv-name { font-size: 1.3rem; font-weight: 700; color: #1E3A8A; }
-  .cv-meta { font-size: 0.82rem; color: #64748B; margin: 4px 0 12px; }
-  .cv-section { font-size: 0.75rem; font-weight: 700; color: #2563EB;
-                text-transform: uppercase; letter-spacing: 1px; margin-top: 12px; }
-  .cv-text { font-size: 0.88rem; color: #334155; margin-top: 4px; }
-  .nota-badge {
-    display: inline-block; background: #EFF6FF; border: 2px solid #2563EB;
-    color: #1E40AF; font-weight: 800; font-size: 1.5rem;
-    border-radius: 50%; width: 52px; height: 52px; line-height: 48px;
-    text-align: center; float: right;
+  .cv-item:hover { border-color: #93C5FD; }
+  .cv-item.selected { border-color: #2563EB; background: #EFF6FF; }
+  .cv-item-name { font-weight: 700; color: #1E3A8A; font-size: 0.95rem; }
+  .cv-item-meta { font-size: 0.75rem; color: #64748B; margin-top: 2px; }
+
+  /* Score badge in list */
+  .score-sm {
+    display: inline-block;
+    background: #1E40AF;
+    color: white;
+    font-weight: 800;
+    font-size: 0.8rem;
+    border-radius: 20px;
+    padding: 2px 9px;
+    float: right;
+    margin-top: 2px;
+  }
+  .score-sm.high  { background: #059669; }
+  .score-sm.mid   { background: #D97706; }
+  .score-sm.low   { background: #DC2626; }
+
+  /* Detail panel */
+  .detail-panel {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 2px 16px rgba(37,99,235,0.09);
+    border: 1px solid #DBEAFE;
+    min-height: 500px;
   }
 
-  div[data-testid="stTextInput"] input { border-radius: 10px; border: 1px solid #DBEAFE; }
-  div[data-testid="stSelectbox"] { border-radius: 10px; }
+  /* Score circle */
+  .score-circle {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; font-weight: 900;
+    color: white;
+    float: right;
+    margin: 0 0 1rem 1rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  }
 
-  thead tr th {
-    background: #EFF6FF !important; color: #1E3A8A !important;
-    font-weight: 700 !important; font-size: 0.8rem !important;
+  /* Candidate header */
+  .cand-name { font-size: 1.6rem; font-weight: 800; color: #1E3A8A; margin-bottom: 4px; }
+  .cand-contact { font-size: 0.85rem; color: #64748B; margin-bottom: 1rem; }
+  .cand-contact span { margin-right: 1.2rem; }
+
+  /* Section titles */
+  .sec-title {
+    font-size: 0.7rem; font-weight: 700; color: #2563EB;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin: 1.2rem 0 0.4rem;
+    padding-bottom: 4px;
+    border-bottom: 1.5px solid #DBEAFE;
+  }
+  .sec-body { font-size: 0.9rem; color: #334155; line-height: 1.6; }
+
+  /* Summary box */
+  .summary-box {
+    background: #EFF6FF;
+    border-left: 3px solid #2563EB;
+    border-radius: 0 8px 8px 0;
+    padding: 0.8rem 1rem;
+    font-size: 0.88rem;
+    color: #1E3A8A;
+    line-height: 1.6;
+    margin: 0.5rem 0 0.5rem;
+  }
+
+  /* Justification box */
+  .just-box {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    color: #475569;
+    font-style: italic;
+    margin-top: 0.3rem;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    color: #94A3B8;
+    padding: 4rem 2rem;
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  .empty-state p { font-size: 0.95rem; }
+
+  /* Search box */
+  div[data-testid="stTextInput"] input {
+    border-radius: 10px;
+    border: 1.5px solid #DBEAFE;
+    font-size: 0.9rem;
+  }
+
+  /* Back button */
+  div[data-testid="stButton"] > button {
+    background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 3px 10px rgba(37,99,235,0.3) !important;
   }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="page-title">📄 Currículos Analisados</p>', unsafe_allow_html=True)
-st.markdown('<p class="page-sub">Visualize, filtre e explore os currículos registrados na planilha.</p>', unsafe_allow_html=True)
+# ── Header ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="page-header">
+  <h2>📄 Currículos Analisados</h2>
+  <p>Selecione um candidato na lista para ver os detalhes completos.</p>
+</div>
+""", unsafe_allow_html=True)
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
 def load():
+    if not Path("token.json").exists():
+        return None
     try:
         from utils.sheets import get_all_cvs
         return get_all_cvs()
-    except FileNotFoundError:
-        return None
     except Exception as exc:
         st.error(f"Erro ao carregar planilha: {exc}")
         return pd.DataFrame()
@@ -60,93 +165,156 @@ def load():
 df = load()
 
 if df is None:
-    st.warning("**credentials.json** não encontrado. Configure o Google Sheets na página inicial antes de continuar.")
+    st.warning("Google Sheets ainda não autenticado. Volte à página inicial e configure o acesso.")
+    if st.button("← Voltar"):
+        st.switch_page("main.py")
     st.stop()
 
 if df.empty:
     st.info("Nenhum currículo analisado ainda. Vá à página inicial e clique em **Buscar CV**.")
+    if st.button("← Voltar"):
+        st.switch_page("main.py")
     st.stop()
 
-# ── Filters ───────────────────────────────────────────────────────────────────
-f1, f2, f3 = st.columns([2, 1, 1])
-with f1:
-    search = st.text_input("🔍 Buscar por nome, habilidade ou cidade", placeholder="Ex: Python, São Paulo...")
-with f2:
-    nota_min = st.slider("Nota mínima", 1, 10, 1)
-with f3:
-    ordenar = st.selectbox("Ordenar por", ["Nota ↓", "Nota ↑", "Nome A-Z", "Mais recente"])
+# ── Session state ─────────────────────────────────────────────────────────────
+if "selected_idx" not in st.session_state:
+    st.session_state.selected_idx = 0
 
-filtered = df.copy()
-if search:
-    mask = filtered.apply(lambda row: search.lower() in row.to_string().lower(), axis=1)
-    filtered = filtered[mask]
+# ── Layout ────────────────────────────────────────────────────────────────────
+col_nav, col_detail = st.columns([1, 2], gap="large")
 
-filtered = filtered[filtered["Nota"] >= nota_min]
+# ── LEFT: candidate list ───────────────────────────────────────────────────────
+with col_nav:
+    search = st.text_input("🔍 Filtrar candidatos", placeholder="Nome, habilidade...")
 
-sort_map = {
-    "Nota ↓": ("Nota", False),
-    "Nota ↑": ("Nota", True),
-    "Nome A-Z": ("Nome", True),
-    "Mais recente": ("Data de Análise", False),
-}
-col, asc = sort_map[ordenar]
-filtered = filtered.sort_values(col, ascending=asc).reset_index(drop=True)
+    filtered = df.copy()
+    if search:
+        mask = filtered.apply(lambda r: search.lower() in r.to_string().lower(), axis=1)
+        filtered = filtered[mask]
 
-# ── Summary chart + table toggle ──────────────────────────────────────────────
-tab_cards, tab_table, tab_chart = st.tabs(["Cards", "Tabela", "Gráfico"])
+    filtered = filtered.sort_values("Nota", ascending=False).reset_index(drop=True)
 
-with tab_cards:
+    st.caption(f"{len(filtered)} candidato(s)")
+
+    for i, row in filtered.iterrows():
+        nota = row.get("Nota", 0)
+        try:
+            nota_f = float(nota)
+        except (TypeError, ValueError):
+            nota_f = 0.0
+
+        score_cls = "high" if nota_f >= 8 else ("mid" if nota_f >= 6 else "low")
+        nota_str = f"{nota_f:.0f}"
+        nome = row.get("Nome") or row.get("Arquivo") or f"Candidato {i+1}"
+        data = row.get("Data de Análise", "")
+        cidade = row.get("Cidade/Estado", "")
+        sub = " · ".join(filter(None, [cidade, data]))
+
+        selected = st.session_state.selected_idx == i
+        card_cls = "cv-item selected" if selected else "cv-item"
+
+        st.markdown(f"""
+        <div class="{card_cls}">
+          <span class="score-sm {score_cls}">{nota_str}</span>
+          <div class="cv-item-name">{nome}</div>
+          <div class="cv-item-meta">{sub}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("Ver detalhes", key=f"sel_{i}", use_container_width=True):
+            st.session_state.selected_idx = i
+            st.rerun()
+
+# ── RIGHT: CV detail ───────────────────────────────────────────────────────────
+with col_detail:
     if filtered.empty:
-        st.info("Nenhum currículo corresponde aos filtros.")
+        st.markdown("""<div class="detail-panel">
+          <div class="empty-state">
+            <div class="icon">🔍</div>
+            <p>Nenhum candidato encontrado com esse filtro.</p>
+          </div>
+        </div>""", unsafe_allow_html=True)
     else:
-        st.caption(f"{len(filtered)} currículo(s) encontrado(s)")
-        for _, row in filtered.iterrows():
-            nota_val = row.get("Nota", "")
-            nota_str = f"{nota_val:.0f}" if pd.notna(nota_val) and nota_val != "" else "—"
-            st.markdown(f"""
-            <div class="cv-card">
-              <span class="nota-badge">{nota_str}</span>
-              <div class="cv-name">{row.get('Nome') or '—'}</div>
-              <div class="cv-meta">
-                📧 {row.get('Email') or '—'} &nbsp;|&nbsp;
-                📱 {row.get('Telefone') or '—'} &nbsp;|&nbsp;
-                📍 {row.get('Cidade/Estado') or '—'} &nbsp;|&nbsp;
-                🗓 {row.get('Data de Análise') or '—'}
-              </div>
-              <div class="cv-section">Resumo</div>
-              <div class="cv-text">{row.get('Resumo') or '—'}</div>
-              <div class="cv-section">Formação</div>
-              <div class="cv-text">{row.get('Formação') or '—'}</div>
-              <div class="cv-section">Habilidades</div>
-              <div class="cv-text">{row.get('Habilidades') or '—'}</div>
-              <div class="cv-section">Justificativa da nota</div>
-              <div class="cv-text">{row.get('Justificativa') or '—'}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        idx = min(st.session_state.selected_idx, len(filtered) - 1)
+        row = filtered.iloc[idx]
 
-with tab_table:
-    cols_show = ["Nome", "Email", "Cidade/Estado", "Formação", "Nota", "Data de Análise"]
-    st.dataframe(
-        filtered[cols_show].rename(columns={"Data de Análise": "Análise"}),
-        use_container_width=True,
-        hide_index=True,
-    )
+        nota = row.get("Nota", 0)
+        try:
+            nota_f = float(nota)
+        except (TypeError, ValueError):
+            nota_f = 0.0
 
-with tab_chart:
-    if filtered["Nota"].notna().any():
-        fig = px.bar(
-            filtered.sort_values("Nota", ascending=True),
-            x="Nota", y="Nome", orientation="h",
-            color="Nota", color_continuous_scale=["#BFDBFE", "#1E40AF"],
-            title="Ranking por Nota",
-            labels={"Nota": "Nota (1–10)", "Nome": ""},
-        )
-        fig.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white",
-            font_color="#1E3A8A", showlegend=False,
-            coloraxis_showscale=False,
-            margin=dict(l=0, r=20, t=40, b=20),
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Sem dados de nota para exibir.")
+        score_color = "#059669" if nota_f >= 8 else ("#D97706" if nota_f >= 6 else "#DC2626")
+        nota_str = f"{nota_f:.0f}"
+
+        nome      = row.get("Nome") or "—"
+        email     = row.get("Email") or "—"
+        telefone  = row.get("Telefone") or "—"
+        cidade    = row.get("Cidade/Estado") or "—"
+        formacao  = row.get("Formação") or "—"
+        exp       = row.get("Experiência") or "—"
+        skills    = row.get("Habilidades") or "—"
+        idiomas   = row.get("Idiomas") or "—"
+        resumo    = row.get("Resumo") or "—"
+        just      = row.get("Justificativa") or "—"
+        arquivo   = row.get("Arquivo") or "—"
+        data_ana  = row.get("Data de Análise") or "—"
+
+        st.markdown(f"""
+        <div class="detail-panel">
+
+          <div class="score-circle" style="background:{score_color}">{nota_str}</div>
+
+          <div class="cand-name">{nome}</div>
+          <div class="cand-contact">
+            <span>📧 {email}</span>
+            <span>📱 {telefone}</span>
+            <span>📍 {cidade}</span>
+          </div>
+          <div style="font-size:0.75rem;color:#94A3B8;margin-bottom:1rem;">
+            Arquivo: {arquivo} &nbsp;·&nbsp; Analisado em: {data_ana}
+          </div>
+
+          <div class="sec-title">Resumo Profissional</div>
+          <div class="summary-box">{resumo}</div>
+
+          <div class="sec-title">Formação Acadêmica</div>
+          <div class="sec-body">{formacao}</div>
+
+          <div class="sec-title">Experiência Profissional</div>
+          <div class="sec-body">{exp}</div>
+
+          <div class="sec-title">Habilidades</div>
+          <div class="sec-body">{skills}</div>
+
+          <div class="sec-title">Idiomas</div>
+          <div class="sec-body">{idiomas}</div>
+
+          <div class="sec-title">Justificativa da Nota</div>
+          <div class="just-box">{just}</div>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Chart tab below
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander("📊 Ver ranking de todos os candidatos"):
+            chart_df = df.copy()
+            chart_df["Nota"] = pd.to_numeric(chart_df["Nota"], errors="coerce")
+            chart_df = chart_df.dropna(subset=["Nota"]).sort_values("Nota", ascending=True)
+            chart_df["Nome"] = chart_df["Nome"].fillna(chart_df["Arquivo"])
+
+            fig = px.bar(
+                chart_df, x="Nota", y="Nome", orientation="h",
+                color="Nota", color_continuous_scale=["#FCA5A5", "#FCD34D", "#34D399"],
+                range_color=[0, 10],
+                labels={"Nota": "Nota (0–10)", "Nome": ""},
+            )
+            fig.update_layout(
+                plot_bgcolor="white", paper_bgcolor="white",
+                font_color="#1E3A8A", coloraxis_showscale=False,
+                margin=dict(l=0, r=20, t=10, b=20),
+                height=max(250, len(chart_df) * 35),
+            )
+            fig.add_vline(x=7, line_dash="dot", line_color="#2563EB", annotation_text="Meta 7")
+            st.plotly_chart(fig, use_container_width=True)

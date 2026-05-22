@@ -165,6 +165,8 @@ st.markdown("""
 # ── Metrics ───────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=120)
 def _load_metrics():
+    if not Path("token.json").exists():
+        return "—", "—", "—"
     try:
         from utils.sheets import get_all_cvs
         df = get_all_cvs()
@@ -200,15 +202,22 @@ with c3:
 st.markdown('<div class="section-title">Ações</div>', unsafe_allow_html=True)
 
 # ── Action panel ──────────────────────────────────────────────────────────────
-col_btn, col_info = st.columns([1, 2], gap="large")
+col_btn, col_btn2, col_info = st.columns([1, 1, 2], gap="large")
 
 with col_btn:
     st.markdown("""<div class="action-card">
         <div class="action-title">Buscar novos currículos</div>
         <div class="action-desc">Verifica o repositório MinIO e processa apenas os arquivos ainda não analisados.</div>
     </div>""", unsafe_allow_html=True)
-    # Spacer between card bg and button (button renders outside the div)
     buscar = st.button("🔍  Buscar CV", use_container_width=True)
+
+with col_btn2:
+    st.markdown("""<div class="action-card">
+        <div class="action-title">Visualizar currículos</div>
+        <div class="action-desc">Consulte os currículos já analisados com detalhes completos e ranking.</div>
+    </div>""", unsafe_allow_html=True)
+    if st.button("📄  Visualizar CV", use_container_width=True):
+        st.switch_page("pages/1_Curriculos.py")
 
 with col_info:
     if _missing_setup:
