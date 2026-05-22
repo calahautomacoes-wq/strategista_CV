@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+credentials.json
+token.json
 data/*.csv
 data/*.xlsx
 data/*.json

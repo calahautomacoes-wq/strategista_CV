@@ -2,54 +2,79 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this project does
+
+StrategisTA is a CV analysis pipeline with a Streamlit frontend. When the user clicks "Buscar CV":
+1. Lists PDF/DOCX files from a public MinIO S3 bucket
+2. Downloads and extracts text from each file
+3. Sends the text to Claude (claude-sonnet-4-6) for structured analysis (name, skills, score 1–10, summary)
+4. Appends new rows to a Google Sheet (calahdev@gmail.com), skipping already-processed files
+5. Displays results in the Streamlit UI
+
 ## Stack
 
-- **Python + Streamlit** — all UI is pure Python, no HTML/CSS/JS needed
-- **Plotly** for interactive charts
-- **Pandas** for data manipulation
-- **openpyxl** for Excel file support
+- **Python + Streamlit** — all UI is pure Python
+- **Anthropic SDK** (`claude-sonnet-4-6`) — CV analysis and scoring
+- **gspread + google-auth-oauthlib** — Google Sheets OAuth2 (Desktop app flow)
+- **pdfplumber / python-docx** — text extraction from PDF and DOCX
+- **requests** — HTTP calls to the public MinIO S3 API
 
 ## Commands
 
 ```bash
-# Create and activate virtual environment (first time)
+# First time
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-source .venv/bin/activate       # macOS/Linux
-
-# Install dependencies
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
 
-# Run the app
+# Run
 streamlit run main.py
 
-# Run on a specific port
+# Specific port
 streamlit run main.py --server.port 8502
 ```
 
-## Architecture
+## Project structure
 
 ```
-main.py              # Home page — runs via `streamlit run main.py`
-pages/               # Each file = one sidebar page (Streamlit native multi-page)
-components/          # Reusable UI functions (e.g., metric_row)
-utils/               # Data loading helpers (cached with @st.cache_data)
-data/                # Local data files (CSV, Excel) — not committed to git
-.streamlit/config.toml  # Theme and server settings
+main.py              # Home: hero, metrics, "Buscar CV" button, processing log
+pages/
+  1_Curriculos.py    # CV viewer: cards, table, and bar chart tabs
+utils/
+  minio_client.py    # list_cv_files(), download_file() — S3 XML API, no auth
+  cv_parser.py       # extract_text() — pdfplumber for PDF, python-docx for DOCX
+  cv_analyzer.py     # analyze_cv() — sends text to Claude, returns structured dict
+  sheets.py          # get_processed_files(), append_cv(), get_all_cvs() — gspread
+components/
+  metrics.py         # metric_row() helper (currently unused by main pages)
+.streamlit/
+  config.toml        # Blue/white theme and server settings
+.env                 # ANTHROPIC_API_KEY and MinIO config (not committed)
+credentials.json     # Google OAuth2 Desktop credentials (not committed)
+token.json           # Saved OAuth2 token after first login (not committed)
 ```
 
-### Multi-page conventions
+## Required secrets (not committed)
 
-- Page files in `pages/` are named `N_Page_Name.py` (number prefix controls sidebar order).
-- Every page file must call `st.set_page_config()` as its first Streamlit call.
-- Pages import from `components/` and `utils/` using standard Python imports.
+| File / Variable | Purpose |
+|---|---|
+| `.env` → `ANTHROPIC_API_KEY` | Anthropic API key |
+| `.env` → `MINIO_API_ENDPOINT` | MinIO S3 API base URL (defaults to `https://bots-strategista-minio.1eybor.easypanel.host`) |
+| `credentials.json` | Google OAuth2 client credentials (Desktop app type, from Google Cloud Console) |
+| `token.json` | Auto-generated on first Google login — do not edit manually |
 
-### Data loading
+## Google Sheets setup
 
-`utils/data.py` exposes `load_csv` and `load_excel`, both decorated with `@st.cache_data` so data is read once per session. Drop data files into `data/` and load them via these helpers.
+1. Google Cloud Console → create project → enable **Google Sheets API** and **Google Drive API**
+2. Credentials → Create OAuth 2.0 Client ID → type **Desktop app** → download JSON → save as `credentials.json`
+3. First `streamlit run main.py` → click Buscar CV → browser opens for Google login with **calahdev@gmail.com**
+4. Sheet named `StrategisTA - Currículos` is created automatically
 
-### Adding a new page
+## Duplicate prevention
 
-1. Create `pages/N_Name.py` with `st.set_page_config` at the top.
-2. Import reusable components from `components/` as needed.
-3. The file appears automatically in the sidebar — no routing config required.
+`sheets.py:get_processed_files()` fetches column A (Arquivo) from the sheet and returns a set of filenames. In `main.py`, files in that set are skipped before downloading or calling the API.
+
+## Adding a new page
+
+Create `pages/N_Name.py`. Must call `st.set_page_config()` as the first Streamlit call. Appears in the sidebar automatically.
