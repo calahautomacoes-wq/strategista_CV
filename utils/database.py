@@ -1,9 +1,11 @@
 import os
 import pandas as pd
 from supabase import create_client, Client
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+_ENV = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_ENV, override=True)
 
 _TABLE = "curriculos"
 _client: Client | None = None
@@ -32,23 +34,36 @@ def get_processed_files() -> set[str]:
     return {row["arquivo"] for row in resp.data} if resp.data else set()
 
 
-def insert_cv(data: dict, timestamp: str) -> None:
-    """Insert one CV record into the database."""
-    _get_client().table(_TABLE).insert({
-        "arquivo":      data.get("arquivo", ""),
-        "data_analise": timestamp,
-        "nome":         data.get("nome", ""),
-        "email":        data.get("email", ""),
-        "telefone":     data.get("telefone", ""),
+def _to_record(data: dict, timestamp: str) -> dict:
+    """Converte dict analisado para formato do banco de dados."""
+    return {
+        "arquivo":       data.get("arquivo", ""),
+        "data_analise":  timestamp,
+        "nome":          data.get("nome", ""),
+        "email":         data.get("email", ""),
+        "telefone":      data.get("telefone", ""),
         "cidade_estado": data.get("cidade_estado", ""),
-        "formacao":     data.get("formacao", ""),
-        "experiencia":  data.get("experiencia", ""),
-        "habilidades":  data.get("habilidades", ""),
-        "idiomas":      data.get("idiomas", ""),
-        "resumo":       data.get("resumo", ""),
-        "nota":         float(data.get("nota", 0) or 0),
+        "formacao":      data.get("formacao", ""),
+        "experiencia":   data.get("experiencia", ""),
+        "habilidades":   data.get("habilidades", ""),
+        "idiomas":       data.get("idiomas", ""),
+        "resumo":        data.get("resumo", ""),
+        "nota":          float(data.get("nota", 0) or 0),
         "justificativa": data.get("justificativa", ""),
-    }).execute()
+    }
+
+
+def insert_cv(data: dict, timestamp: str) -> None:
+    """Insere um único CV no banco de dados."""
+    _get_client().table(_TABLE).insert(_to_record(data, timestamp)).execute()
+
+
+def batch_insert_cvs(items: list[tuple[dict, str]]) -> None:
+    """Insere múltiplos CVs em um único request ao Supabase."""
+    if not items:
+        return
+    records = [_to_record(data, ts) for data, ts in items]
+    _get_client().table(_TABLE).insert(records).execute()
 
 
 def get_all_cvs() -> pd.DataFrame:

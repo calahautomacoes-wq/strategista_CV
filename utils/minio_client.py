@@ -1,9 +1,11 @@
 import os
 import requests
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+_ENV = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_ENV, override=True)
 
 _ENDPOINT = os.getenv("MINIO_API_ENDPOINT", "https://bots-strategista-minio.1eybor.easypanel.host")
 _BUCKET = os.getenv("MINIO_BUCKET", "curriculos")

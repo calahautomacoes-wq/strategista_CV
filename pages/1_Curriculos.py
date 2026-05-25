@@ -130,14 +130,35 @@ st.markdown("""
     font-size: 0.9rem;
   }
 
-  /* Back button */
-  div[data-testid="stButton"] > button {
-    background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%) !important;
-    color: white !important;
+  /* Primary buttons */
+  button[data-testid="stBaseButton-primary"],
+  div[data-testid="stButton"] button[kind="primary"] {
+    background: #2563EB !important;
+    background-image: none !important;
+    color: #ffffff !important;
     border: none !important;
     border-radius: 10px !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
     box-shadow: 0 3px 10px rgba(37,99,235,0.3) !important;
+    transition: background 0.2s ease !important;
+  }
+  button[data-testid="stBaseButton-primary"]:hover,
+  div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #1D4ED8 !important;
+  }
+  /* Secondary / default buttons */
+  button[data-testid="stBaseButton-secondary"],
+  div[data-testid="stButton"] button[kind="secondary"] {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #475569 !important;
+    border: 1.5px solid #CBD5E1 !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+  }
+  button[data-testid="stBaseButton-secondary"]:hover,
+  div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background: #F1F5F9 !important;
   }
 </style>
 """, unsafe_allow_html=True)

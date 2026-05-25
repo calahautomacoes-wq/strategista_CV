@@ -1,17 +1,25 @@
 import json
 import os
+import threading
 import anthropic
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Caminho absoluto: sobe de utils/ para a raiz do projeto
+_ENV = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_ENV, override=True)
 
-_client = None
+_client: anthropic.Anthropic | None = None
+_client_lock = threading.Lock()
 
 
 def _get_client() -> anthropic.Anthropic:
+    """Thread-safe singleton para o cliente Anthropic."""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        with _client_lock:
+            if _client is None:          # double-checked locking
+                _client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     return _client
 
 
@@ -39,7 +47,7 @@ CURRÍCULO:
 
 
 def analyze_cv(cv_text: str, filename: str) -> dict:
-    """Send CV text to Claude and return structured analysis."""
+    """Envia texto do CV ao Claude e retorna análise estruturada."""
     message = _get_client().messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1200,
@@ -48,7 +56,7 @@ def analyze_cv(cv_text: str, filename: str) -> dict:
 
     raw = message.content[0].text.strip()
 
-    # Strip markdown code fences if present
+    # Remove code fences do markdown, se houver
     if raw.startswith("```"):
         lines = raw.splitlines()
         raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
@@ -56,7 +64,6 @@ def analyze_cv(cv_text: str, filename: str) -> dict:
     data = json.loads(raw)
     data["arquivo"] = filename
 
-    # Ensure nota is numeric
     try:
         data["nota"] = float(data.get("nota", 0))
     except (TypeError, ValueError):

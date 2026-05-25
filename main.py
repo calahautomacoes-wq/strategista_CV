@@ -2,6 +2,11 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Número de CVs processados em paralelo.
+# 4 é seguro dentro do rate-limit da API Anthropic (~50 req/min).
+_MAX_WORKERS = 4
 
 st.set_page_config(
     page_title="StrategisTA",
@@ -86,24 +91,44 @@ st.markdown("""
   .action-title { font-size: 1.1rem; font-weight: 700; color: #1E3A8A; margin-bottom: 0.3rem; }
   .action-desc  { font-size: 0.85rem; color: #64748B; margin-bottom: 1.2rem; }
 
-  /* Primary button override */
-  div[data-testid="stButton"] > button[kind="primary"],
-  div[data-testid="stButton"] > button {
-    background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%) !important;
-    color: white !important;
+  /* Primary buttons — solid blue */
+  button[data-testid="stBaseButton-primary"],
+  div[data-testid="stButton"] button[kind="primary"] {
+    background: #2563EB !important;
+    background-image: none !important;
+    color: #ffffff !important;
     border: none !important;
     border-radius: 12px !important;
-    padding: 0.85rem 2rem !important;
-    font-size: 1.1rem !important;
     font-weight: 700 !important;
-    letter-spacing: 0.4px !important;
-    width: 100% !important;
-    box-shadow: 0 6px 20px rgba(37,99,235,0.4) !important;
-    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    font-size: 1rem !important;
+    padding: 0.7rem 1.5rem !important;
+    transition: background 0.2s ease !important;
+    box-shadow: 0 4px 14px rgba(37,99,235,0.35) !important;
   }
-  div[data-testid="stButton"] > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 10px 30px rgba(37,99,235,0.5) !important;
+  button[data-testid="stBaseButton-primary"]:hover,
+  div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: #1D4ED8 !important;
+    box-shadow: 0 6px 18px rgba(37,99,235,0.45) !important;
+  }
+
+  /* Cancel / danger secondary button (único botão secundário desta página) */
+  button[data-testid="stBaseButton-secondary"],
+  div[data-testid="stButton"] button[kind="secondary"] {
+    background: #FEF2F2 !important;
+    background-image: none !important;
+    color: #B91C1C !important;
+    border: 1.5px solid #FECACA !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    padding: 0.65rem 1.4rem !important;
+    transition: background 0.2s ease !important;
+  }
+  button[data-testid="stBaseButton-secondary"]:hover,
+  div[data-testid="stButton"] button[kind="secondary"]:hover {
+    background: #FEE2E2 !important;
+    border-color: #F87171 !important;
+    color: #991B1B !important;
   }
 
   /* Log terminal */
@@ -130,20 +155,6 @@ st.markdown("""
     border-radius: 12px;
     padding: 1.2rem 1.5rem;
     margin-top: 1rem;
-  }
-
-  /* Cancel button */
-  div[data-testid="stButton"] > button[kind="secondary"] {
-    background: transparent !important;
-    color: #DC2626 !important;
-    border: 2px solid #DC2626 !important;
-    border-radius: 10px !important;
-    font-weight: 600 !important;
-    box-shadow: none !important;
-  }
-  div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    background: #FEE2E2 !important;
-    transform: none !important;
   }
 
   /* Section header */
@@ -221,14 +232,14 @@ with col_btn:
         <div class="action-title">Buscar novos currículos</div>
         <div class="action-desc">Verifica o repositório MinIO e processa apenas os arquivos ainda não analisados.</div>
     </div>""", unsafe_allow_html=True)
-    buscar = st.button("🔍  Buscar CV", use_container_width=True)
+    buscar = st.button("🔍  Buscar CV", use_container_width=True, type="primary")
 
 with col_btn2:
     st.markdown("""<div class="action-card">
         <div class="action-title">Visualizar currículos</div>
         <div class="action-desc">Consulte os currículos já analisados com detalhes completos e ranking.</div>
     </div>""", unsafe_allow_html=True)
-    if st.button("📄  Visualizar CV", use_container_width=True):
+    if st.button("📄  Visualizar CV", use_container_width=True, type="primary"):
         st.switch_page("pages/1_Curriculos.py")
 
 with col_info:
@@ -278,19 +289,25 @@ if buscar:
     progress_bar = st.progress(0, text="Iniciando...")
 
     # Botão Cancelar — visível durante o processamento
-    with cancel_placeholder:
-        if st.button("⛔ Cancelar análise", type="secondary", key="btn_cancelar"):
+    with cancel_placeholder.container():
+        if st.button("⛔ Cancelar análise", key="cancelar_btn", type="secondary"):
             st.session_state.cancelar = True
 
     try:
-        log("Conectando ao repositório MinIO...")
+        # ── 1. Listar arquivos e procesados em paralelo ────────────────────────
+        log("Conectando ao repositório MinIO e Supabase...")
         from utils.minio_client import list_cv_files, download_file
-        files = list_cv_files()
-        log(f"Encontrados {len(files)} arquivo(s) no bucket.", "ok")
+        from utils.database import get_processed_files, batch_insert_cvs
+        from utils.cv_parser import extract_text
+        from utils.cv_analyzer import analyze_cv
 
-        log("Verificando banco de dados Supabase...")
-        from utils.database import get_processed_files, insert_cv
-        processed = get_processed_files()
+        with ThreadPoolExecutor(max_workers=2) as init_exec:
+            f_files     = init_exec.submit(list_cv_files)
+            f_processed = init_exec.submit(get_processed_files)
+            files     = f_files.result()
+            processed = f_processed.result()
+
+        log(f"Encontrados {len(files)} arquivo(s) no bucket.", "ok")
         log(f"{len(processed)} já processado(s) no banco.", "dim")
 
         pending = [f for f in files if f["filename"] not in processed]
@@ -300,39 +317,70 @@ if buscar:
             log("Nenhum currículo novo encontrado. Tudo atualizado!", "ok")
             progress_bar.progress(1.0, text="Concluído — sem novos currículos.")
         else:
-            from utils.cv_parser import extract_text
-            from utils.cv_analyzer import analyze_cv
+            # ── 2. Função worker (roda em threads) ────────────────────────────
+            def _process_one(file_info: dict) -> tuple[str, dict]:
+                """Download + extração + análise IA de um CV."""
+                fname   = file_info["filename"]
+                content = download_file(file_info["key"])
+                text    = extract_text(content, fname)
+                data    = analyze_cv(text, fname)
+                return fname, data
 
-            for idx, file in enumerate(pending, 1):
-                # Verificar cancelamento a cada CV
-                if st.session_state.get("cancelar"):
-                    log(f"⛔ Análise cancelada pelo usuário após {novos} CV(s) processado(s).", "warn")
-                    progress_bar.progress(idx / len(pending), text="Cancelado.")
-                    break
+            # ── 3. Processamento paralelo com batch insert ────────────────────
+            _BATCH_SIZE = 10      # Insere no banco a cada N CVs concluídos
+            batch_buffer: list[tuple[dict, str]] = []
+            done_count = 0
 
-                fname = file["filename"]
-                progress_bar.progress(idx / len(pending), text=f"Analisando {idx}/{len(pending)}: {fname}")
-                try:
-                    log(f"↓ Baixando: {fname}")
-                    content = download_file(file["key"])
+            with ThreadPoolExecutor(max_workers=_MAX_WORKERS) as executor:
+                future_map = {executor.submit(_process_one, f): f for f in pending}
 
-                    log(f"  Extraindo texto ({len(content)//1024} KB)...")
-                    text = extract_text(content, fname)
+                for future in as_completed(future_map):
+                    done_count += 1
+                    file_info = future_map[future]
+                    fname     = file_info["filename"]
+                    short     = fname[:45] + "…" if len(fname) > 45 else fname
+                    progress_bar.progress(
+                        done_count / len(pending),
+                        text=f"Analisando {done_count}/{len(pending)}: {short}",
+                    )
 
-                    log(f"  Analisando com IA...")
-                    data = analyze_cv(text, fname)
+                    # Verificar cancelamento (entre futures, não dentro do worker)
+                    if st.session_state.get("cancelar"):
+                        for f in future_map:
+                            f.cancel()
+                        log(f"⛔ Análise cancelada após {novos} CV(s) processado(s).", "warn")
+                        progress_bar.progress(done_count / len(pending), text="Cancelado.")
+                        break
 
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    insert_cv(data, timestamp)
-                    novos += 1
-                    log(f"✓ {fname} — Nota: {data.get('nota', '?')} — {data.get('nome', '')}", "ok")
-                except Exception as exc:
-                    erros += 1
-                    log(f"✗ Erro em {fname}: {exc}", "err")
+                    try:
+                        _, data = future.result()
+                        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        batch_buffer.append((data, ts))
+                        novos += 1
+                        log(f"✓ {fname} — Nota: {data.get('nota', '?')} — {data.get('nome', '')}", "ok")
+                    except Exception as exc:
+                        erros += 1
+                        log(f"✗ Erro em {fname}: {exc}", "err")
 
-            else:
+                    # Flush batch quando atingir o tamanho limite
+                    if len(batch_buffer) >= _BATCH_SIZE:
+                        try:
+                            batch_insert_cvs(batch_buffer)
+                            batch_buffer.clear()
+                        except Exception as exc:
+                            log(f"✗ Erro ao salvar lote no banco: {exc}", "err")
+
+                # Inserir registros restantes
+                if batch_buffer:
+                    try:
+                        batch_insert_cvs(batch_buffer)
+                    except Exception as exc:
+                        log(f"✗ Erro ao salvar registros finais: {exc}", "err")
+
+            if not st.session_state.get("cancelar"):
                 progress_bar.progress(1.0, text="Concluído!")
-                log(f"Finalizado: {novos} novo(s) adicionado(s), {erros} erro(s).", "ok" if not erros else "warn")
+                log(f"Finalizado: {novos} novo(s) adicionado(s), {erros} erro(s).",
+                    "ok" if not erros else "warn")
 
         # Remover botão cancelar e atualizar métricas
         cancel_placeholder.empty()
