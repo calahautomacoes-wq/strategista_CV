@@ -9,3 +9,4 @@ token.json
 data/*.csv
 data/*.xlsx
 data/*.json
+*.log
