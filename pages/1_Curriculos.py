@@ -153,28 +153,30 @@ st.markdown("""
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
 def load():
-    if not Path("token.json").exists():
-        return None
     try:
-        from utils.sheets import get_all_cvs
+        from utils.database import get_all_cvs
         return get_all_cvs()
     except Exception as exc:
-        st.error(f"Erro ao carregar planilha: {exc}")
+        st.error(f"Erro ao carregar dados: {exc}")
         return pd.DataFrame()
 
 df = load()
 
-if df is None:
-    st.warning("Google Sheets ainda não autenticado. Volte à página inicial e configure o acesso.")
-    if st.button("← Voltar"):
-        st.switch_page("main.py")
-    st.stop()
-
-if df.empty:
+if df is None or df.empty:
     st.info("Nenhum currículo analisado ainda. Vá à página inicial e clique em **Buscar CV**.")
     if st.button("← Voltar"):
         st.switch_page("main.py")
     st.stop()
+
+# ── CSV Download ───────────────────────────────────────────────────────────────
+csv_bytes = df.to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="⬇️  Baixar CSV",
+    data=csv_bytes,
+    file_name="curriculos_strategista.csv",
+    mime="text/csv",
+    use_container_width=False,
+)
 
 # ── Session state ─────────────────────────────────────────────────────────────
 if "selected_idx" not in st.session_state:

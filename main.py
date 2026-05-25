@@ -165,10 +165,8 @@ st.markdown("""
 # ── Metrics ───────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=120)
 def _load_metrics():
-    if not Path("token.json").exists():
-        return "—", "—", "—"
     try:
-        from utils.sheets import get_all_cvs
+        from utils.database import get_all_cvs
         df = get_all_cvs()
         total = len(df)
         media = round(df["Nota"].mean(), 1) if total else "—"
@@ -265,10 +263,10 @@ if buscar:
         files = list_cv_files()
         log(f"Encontrados {len(files)} arquivo(s) no bucket.", "ok")
 
-        log("Verificando planilha Google Sheets...")
-        from utils.sheets import get_processed_files, append_cv, get_all_cvs
+        log("Verificando banco de dados Supabase...")
+        from utils.database import get_processed_files, insert_cv
         processed = get_processed_files()
-        log(f"{len(processed)} já processado(s) na planilha.", "dim")
+        log(f"{len(processed)} já processado(s) no banco.", "dim")
 
         pending = [f for f in files if f["filename"] not in processed]
         log(f"{len(pending)} novo(s) currículo(s) para analisar.", "ok" if pending else "warn")
@@ -294,7 +292,7 @@ if buscar:
                     data = analyze_cv(text, fname)
 
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    append_cv(data, timestamp)
+                    insert_cv(data, timestamp)
                     novos += 1
                     log(f"✓ {fname} — Nota: {data.get('nota', '?')} — {data.get('nome', '')}", "ok")
                 except Exception as exc:
