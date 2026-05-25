@@ -132,6 +132,20 @@ st.markdown("""
     margin-top: 1rem;
   }
 
+  /* Cancel button */
+  div[data-testid="stButton"] > button[kind="secondary"] {
+    background: transparent !important;
+    color: #DC2626 !important;
+    border: 2px solid #DC2626 !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    background: #FEE2E2 !important;
+    transform: none !important;
+  }
+
   /* Section header */
   .section-title {
     font-size: 1rem;
@@ -241,8 +255,14 @@ if buscar:
         st.error("Corrija os itens de configuração acima antes de continuar.")
         st.stop()
 
+    # Cancelar flag
+    if "cancelar" not in st.session_state:
+        st.session_state.cancelar = False
+    st.session_state.cancelar = False
+
     log_lines: list[str] = []
     log_placeholder = st.empty()
+    cancel_placeholder = st.empty()
 
     def render_log():
         html = '<div class="terminal">' + "".join(log_lines) + "</div>"
@@ -256,6 +276,11 @@ if buscar:
 
     novos, erros = 0, 0
     progress_bar = st.progress(0, text="Iniciando...")
+
+    # Botão Cancelar — visível durante o processamento
+    with cancel_placeholder:
+        if st.button("⛔ Cancelar análise", type="secondary", key="btn_cancelar"):
+            st.session_state.cancelar = True
 
     try:
         log("Conectando ao repositório MinIO...")
@@ -279,6 +304,12 @@ if buscar:
             from utils.cv_analyzer import analyze_cv
 
             for idx, file in enumerate(pending, 1):
+                # Verificar cancelamento a cada CV
+                if st.session_state.get("cancelar"):
+                    log(f"⛔ Análise cancelada pelo usuário após {novos} CV(s) processado(s).", "warn")
+                    progress_bar.progress(idx / len(pending), text="Cancelado.")
+                    break
+
                 fname = file["filename"]
                 progress_bar.progress(idx / len(pending), text=f"Analisando {idx}/{len(pending)}: {fname}")
                 try:
@@ -299,12 +330,15 @@ if buscar:
                     erros += 1
                     log(f"✗ Erro em {fname}: {exc}", "err")
 
-            progress_bar.progress(1.0, text="Concluído!")
-            log(f"Finalizado: {novos} novo(s) adicionado(s), {erros} erro(s).", "ok" if not erros else "warn")
+            else:
+                progress_bar.progress(1.0, text="Concluído!")
+                log(f"Finalizado: {novos} novo(s) adicionado(s), {erros} erro(s).", "ok" if not erros else "warn")
 
-        # Invalidate cached metrics
+        # Remover botão cancelar e atualizar métricas
+        cancel_placeholder.empty()
         _load_metrics.clear()
 
     except Exception as exc:
+        cancel_placeholder.empty()
         log(f"Erro fatal: {exc}", "err")
         st.error(str(exc))
