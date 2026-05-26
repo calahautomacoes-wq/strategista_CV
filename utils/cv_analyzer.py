@@ -23,11 +23,17 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-_PROMPT = """\
-Você é um especialista em recrutamento e seleção. Analise o currículo abaixo e \
+# Modelo e limite de texto para análise de CVs.
+# claude-haiku-4-5  → ~3× mais barato que claude-sonnet-4-6 ($1/$5 vs $3/$15 por 1M tokens)
+# CV_CHAR_LIMIT     → a maioria dos CVs tem as informações relevantes nos primeiros ~5 000 chars
+_MODEL     = "claude-haiku-4-5"
+_CV_CHAR_LIMIT = 5_000
+
+_SYSTEM = """\
+Você é um especialista em recrutamento e seleção. Analise o currículo fornecido e \
 retorne APENAS um JSON válido, sem texto adicional, com esta estrutura:
 
-{{
+{
   "nome": "nome completo",
   "email": "email ou vazio",
   "telefone": "telefone ou vazio",
@@ -39,19 +45,19 @@ retorne APENAS um JSON válido, sem texto adicional, com esta estrutura:
   "resumo": "resumo profissional do candidato em 3-4 frases completas",
   "nota": 7,
   "justificativa": "justificativa objetiva da nota de 1 a 10"
-}}
-
-CURRÍCULO:
-{cv_text}
-"""
+}"""
 
 
 def analyze_cv(cv_text: str, filename: str) -> dict:
     """Envia texto do CV ao Claude e retorna análise estruturada."""
     message = _get_client().messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1200,
-        messages=[{"role": "user", "content": _PROMPT.format(cv_text=cv_text[:8000])}],
+        model=_MODEL,
+        max_tokens=1024,
+        system=_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": f"CURRÍCULO:\n{cv_text[:_CV_CHAR_LIMIT]}",
+        }],
     )
 
     raw = message.content[0].text.strip()
