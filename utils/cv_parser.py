@@ -52,7 +52,7 @@ def _pdf_ocr_claude(content: bytes) -> str:
     for page_num in range(min(len(doc), MAX_PAGES)):
         page = doc[page_num]
         # Renderiza a página em 150 DPI (boa resolução sem exceder limite de tokens)
-        mat  = fitz.Matrix(150 / 72, 150 / 72)
+        mat  = fitz.Matrix(200 / 72, 200 / 72)
         pix  = page.get_pixmap(matrix=mat, colorspace=fitz.csRGB)
         img_bytes  = pix.tobytes("png")
         img_b64    = base64.standard_b64encode(img_bytes).decode()
@@ -87,7 +87,7 @@ def _pdf_ocr_claude(content: bytes) -> str:
     doc.close()
     result = "\n\n".join(t for t in page_texts if t)
     if not result:
-        raise ValueError("Não foi possível extrair texto do PDF (nem por OCR).")
+        result = "[PDF ilegível — não foi possível extrair texto por OCR]"
     return result
 
 

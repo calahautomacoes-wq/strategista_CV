@@ -66,6 +66,11 @@ def batch_insert_cvs(items: list[tuple[dict, str]]) -> None:
     _get_client().table(_TABLE).insert(records).execute()
 
 
+def clear_all_cvs() -> None:
+    """Remove todos os registros da tabela curriculos."""
+    _get_client().table(_TABLE).delete().neq("arquivo", "").execute()
+
+
 def get_all_cvs() -> pd.DataFrame:
     """Return all CV records as a DataFrame ordered by score desc."""
     resp = (

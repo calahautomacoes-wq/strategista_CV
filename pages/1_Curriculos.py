@@ -184,7 +184,7 @@ def load():
 df = load()
 
 if df is None or df.empty:
-    st.info("Nenhum currículo analisado ainda. Vá à página inicial e clique em **Buscar CV**.")
+    st.info("Nenhum currículo analisado ainda. Vá à página inicial e clique em **Enviar CV** para fazer upload e analisar.")
     if st.button("← Voltar"):
         st.switch_page("main.py")
     st.stop()
