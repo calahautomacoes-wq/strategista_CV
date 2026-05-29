@@ -121,6 +121,34 @@ st.markdown("""
   .thank-you h2 { color: #065F46; font-size: 1.5rem; font-weight: 800; margin: 0 0 0.5rem; }
   .thank-you p  { color: #047857; font-size: 0.92rem; margin: 0; line-height: 1.7; }
 
+  /* LGPD */
+  .lgpd-box {
+    background: #F0F9FF; border: 1px solid #BAE6FD;
+    border-radius: 14px; padding: 16px 20px; margin: 1.4rem 0 0.6rem;
+  }
+  .lgpd-box-title { font-size: 0.87rem; font-weight: 700; color: #0369A1; margin-bottom: 6px; }
+  .lgpd-box-text  { font-size: 0.81rem; color: #334155; line-height: 1.7; }
+  .lgpd-link {
+    display: inline-block; position: relative;
+    color: #2563EB; font-weight: 600; cursor: pointer;
+    text-decoration: underline dotted #93C5FD;
+  }
+  .lgpd-popup {
+    display: none;
+    position: absolute; bottom: 130%; left: -10px;
+    width: 360px; background: white;
+    border: 1px solid #BFDBFE; border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 8px 32px rgba(37,99,235,0.18);
+    z-index: 9999; font-size: 0.76rem; color: #374151;
+    line-height: 1.65; text-align: left; font-weight: 400;
+  }
+  .lgpd-popup::after {
+    content: ''; position: absolute; top: 100%; left: 24px;
+    border: 7px solid transparent; border-top-color: white;
+  }
+  .lgpd-link:hover .lgpd-popup { display: block; }
+
   /* Botão primário */
   button[data-testid="stBaseButton-primary"],
   div[data-testid="stButton"] button[kind="primary"] {
@@ -319,6 +347,19 @@ if st.session_state["app_state"] == "review":
     from utils.database import get_processed_files, batch_insert_cvs, update_cv_by_phone, log_access
     d = st.session_state["cv_data"]
 
+    # Inicializa campos no session_state quando entrar em review com novo CV
+    if st.session_state.get("_rev_arquivo") != d.get("arquivo", ""):
+        st.session_state["_rev_arquivo"]  = d.get("arquivo", "")
+        st.session_state["rev_nome"]      = d.get("nome", "")
+        st.session_state["rev_email"]     = d.get("email", "")
+        st.session_state["rev_telefone"]  = d.get("telefone", "") or st.session_state.get("found_phone", "")
+        st.session_state["rev_cidade"]    = d.get("cidade_estado", "")
+        st.session_state["rev_idiomas"]   = d.get("idiomas", "")
+        st.session_state["rev_formacao"]  = d.get("formacao", "")
+        st.session_state["rev_exp"]       = d.get("experiencia", "")
+        st.session_state["rev_skills"]    = d.get("habilidades", "")
+        st.session_state["lgpd_aceito"]   = False
+
     st.markdown("""
     <div class="review-card">
       <div class="review-title">🔍 Confirme seus dados</div>
@@ -329,28 +370,69 @@ if st.session_state["app_state"] == "review":
     </div>
     """, unsafe_allow_html=True)
 
-    with st.form("review_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            nome     = st.text_input("👤 Nome completo",   value=d.get("nome", ""))
-            email    = st.text_input("📧 E-mail",           value=d.get("email", ""))
-            telefone = st.text_input("📱 Telefone",         value=d.get("telefone", "") or st.session_state.get("found_phone",""))
-            cidade   = st.text_input("📍 Cidade / Estado",  value=d.get("cidade_estado", ""))
-            idiomas  = st.text_input("🌐 Idiomas",          value=d.get("idiomas", ""))
-        with col2:
-            formacao = st.text_area("🎓 Formação acadêmica",       value=d.get("formacao", ""),    height=110)
-            exp      = st.text_area("💼 Experiência profissional",  value=d.get("experiencia", ""), height=110)
-            skills   = st.text_area("🛠️ Habilidades",               value=d.get("habilidades", ""), height=110)
+    col1, col2 = st.columns(2)
+    with col1:
+        nome     = st.text_input("👤 Nome completo",   key="rev_nome")
+        email    = st.text_input("📧 E-mail",           key="rev_email")
+        telefone = st.text_input("📱 Telefone",         key="rev_telefone")
+        cidade   = st.text_input("📍 Cidade / Estado",  key="rev_cidade")
+        idiomas  = st.text_input("🌐 Idiomas",          key="rev_idiomas")
+    with col2:
+        formacao = st.text_area("🎓 Formação acadêmica",       key="rev_formacao", height=110)
+        exp      = st.text_area("💼 Experiência profissional",  key="rev_exp",      height=110)
+        skills   = st.text_area("🛠️ Habilidades",               key="rev_skills",   height=110)
 
-        st.markdown("<hr style='border:none;border-top:1.5px solid #DBEAFE;margin:1.2rem 0'>", unsafe_allow_html=True)
+    # ── LGPD ────────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="lgpd-box">
+      <div class="lgpd-box-title">🔒 Proteção de Dados — LGPD</div>
+      <div class="lgpd-box-text">
+        Seus dados serão usados <strong>exclusivamente para fins de recrutamento e seleção</strong>,
+        conforme a nossa
+        <span class="lgpd-link">Política de Privacidade
+          <div class="lgpd-popup">
+            <strong>📋 Política de Privacidade — StrategisTA</strong><br><br>
+            <strong>Dados coletados:</strong> nome, e-mail, telefone, localização,
+            formação, experiência, habilidades e idiomas.<br><br>
+            <strong>Finalidade:</strong> identificação e contato em processos seletivos.<br><br>
+            <strong>Base legal:</strong> consentimento do titular
+            (Art. 7º, I — Lei nº 13.709/2018).<br><br>
+            <strong>Retenção:</strong> até 2 anos ou até solicitação de exclusão.<br><br>
+            <strong>Seus direitos:</strong> acesso, correção, exclusão e portabilidade
+            dos dados (Art. 18 — LGPD).<br><br>
+            <strong>Compartilhamento:</strong> seus dados <u>não serão vendidos</u>
+            nem repassados a terceiros sem sua autorização.<br><br>
+            <strong>Contato DPO:</strong> privacidade@strategista.com.br
+          </div>
+        </span>
+        e nos termos da Lei nº 13.709/2018 (LGPD).
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        col_confirm, col_back = st.columns([3, 1])
-        with col_confirm:
-            confirmar = st.form_submit_button("✅  Confirmo meus Dados", use_container_width=True, type="primary")
-        with col_back:
-            voltar = st.form_submit_button("← Voltar", use_container_width=True)
+    lgpd_aceito = st.checkbox(
+        "Li e concordo com o tratamento dos meus dados pessoais conforme a Política de Privacidade acima",
+        key="lgpd_aceito",
+    )
+
+    if not lgpd_aceito:
+        st.caption("☝️ Marque a caixa acima para habilitar o botão de confirmação.")
+
+    st.markdown("<hr style='border:none;border-top:1.5px solid #DBEAFE;margin:1rem 0'>", unsafe_allow_html=True)
+
+    col_confirm, col_back = st.columns([3, 1])
+    with col_confirm:
+        confirmar = st.button(
+            "✅  Confirmo meus Dados",
+            use_container_width=True,
+            type="primary",
+            disabled=not lgpd_aceito,
+        )
+    with col_back:
+        voltar = st.button("← Voltar", use_container_width=True)
 
     if voltar:
+        st.session_state["lgpd_aceito"] = False
         st.session_state["app_state"] = "upload" if st.session_state["is_update"] else "phone"
         st.rerun()
 
@@ -373,10 +455,14 @@ if st.session_state["app_state"] == "review":
                     batch_insert_cvs([(d_final, ts)])
                 log_access(telefone.strip(), nome.strip(), "enviou_curriculo")
 
+            # Registra aceite LGPD no log
+            log_access(telefone.strip(), nome.strip(), "aceite_lgpd")
+
             _csv_data.clear()
-            st.session_state["submit_type"] = "update" if st.session_state["is_update"] else "new"
-            st.session_state["app_state"]   = "submitted"
-            st.session_state["cv_data"]     = {}
+            st.session_state["lgpd_aceito"]   = False
+            st.session_state["submit_type"]   = "update" if st.session_state["is_update"] else "new"
+            st.session_state["app_state"]     = "submitted"
+            st.session_state["cv_data"]       = {}
             st.rerun()
         except Exception as exc:
             st.error(f"Erro ao salvar os dados: {exc}")
