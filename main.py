@@ -364,7 +364,7 @@ if st.session_state["app_state"] == "returning":
 # ESTADO: review — revisão dos dados extraídos pelo candidato
 # ═══════════════════════════════════════════════════════════════════════════════
 if st.session_state["app_state"] == "review":
-    from utils.database import get_processed_files, batch_insert_cvs, update_cv_by_phone, log_access
+    from utils.database import batch_insert_cvs, log_access
     d = st.session_state["cv_data"]
 
     # Inicializa campos no session_state quando entrar em review com novo CV
@@ -405,14 +405,12 @@ if st.session_state["app_state"] == "review":
         }
         try:
             ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-            if st.session_state["is_update"]:
-                update_cv_by_phone(st.session_state["found_phone"], d_final, ts)
-                log_access(d_final["telefone"], d_final["nome"], "atualizou_curriculo")
-            else:
-                processed = get_processed_files()
-                if d_final.get("arquivo") not in processed:
-                    batch_insert_cvs([(d_final, ts)])
-                log_access(d_final["telefone"], d_final["nome"], "enviou_curriculo")
+
+            # Sempre insere novo registro — histórico completo de alterações por candidato
+            batch_insert_cvs([(d_final, ts)])
+
+            acao = "atualizou_curriculo" if st.session_state["is_update"] else "enviou_curriculo"
+            log_access(d_final["telefone"], d_final["nome"], acao)
 
             acao_lgpd = "aceite_lgpd" if lgpd_value == "sim" else "recusou_lgpd"
             log_access(d_final["telefone"], d_final["nome"], acao_lgpd)
