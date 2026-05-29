@@ -149,6 +149,15 @@ st.markdown("""
   }
   .lgpd-link:hover .lgpd-popup { display: block; }
 
+  /* Dialog de confirmação LGPD */
+  .lgpd-dialog {
+    background: #FFFBEB; border: 1.5px solid #FCD34D;
+    border-radius: 16px; padding: 20px 22px; margin: 1rem 0;
+  }
+  .lgpd-dialog-icon { font-size: 1.8rem; margin-bottom: 6px; }
+  .lgpd-dialog-title { font-size: 0.97rem; font-weight: 800; color: #92400E; margin-bottom: 6px; }
+  .lgpd-dialog-text  { font-size: 0.84rem; color: #78350F; line-height: 1.65; }
+
   /* Botão primário */
   button[data-testid="stBaseButton-primary"],
   div[data-testid="stButton"] button[kind="primary"] {
@@ -358,7 +367,46 @@ if st.session_state["app_state"] == "review":
         st.session_state["rev_formacao"]  = d.get("formacao", "")
         st.session_state["rev_exp"]       = d.get("experiencia", "")
         st.session_state["rev_skills"]    = d.get("habilidades", "")
-        st.session_state.pop("lgpd_aceito", None)  # força desmarcado ao carregar novo CV
+        st.session_state.pop("lgpd_aceito", None)
+        st.session_state.pop("_lgpd_dialog", None)
+
+    # ── Helper de salvamento ────────────────────────────────────────────────
+    def _do_save(lgpd_value: str):
+        d_final = {
+            **d,
+            "nome":          st.session_state["rev_nome"].strip(),
+            "email":         st.session_state["rev_email"].strip(),
+            "telefone":      st.session_state["rev_telefone"].strip(),
+            "cidade_estado": st.session_state["rev_cidade"].strip(),
+            "formacao":      st.session_state["rev_formacao"].strip(),
+            "experiencia":   st.session_state["rev_exp"].strip(),
+            "habilidades":   st.session_state["rev_skills"].strip(),
+            "idiomas":       st.session_state["rev_idiomas"].strip(),
+            "lgpd":          lgpd_value,
+        }
+        try:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            if st.session_state["is_update"]:
+                update_cv_by_phone(st.session_state["found_phone"], d_final, ts)
+                log_access(d_final["telefone"], d_final["nome"], "atualizou_curriculo")
+            else:
+                processed = get_processed_files()
+                if d_final.get("arquivo") not in processed:
+                    batch_insert_cvs([(d_final, ts)])
+                log_access(d_final["telefone"], d_final["nome"], "enviou_curriculo")
+
+            acao_lgpd = "aceite_lgpd" if lgpd_value == "sim" else "recusou_lgpd"
+            log_access(d_final["telefone"], d_final["nome"], acao_lgpd)
+
+            _csv_data.clear()
+            st.session_state.pop("lgpd_aceito", None)
+            st.session_state.pop("_lgpd_dialog", None)
+            st.session_state["submit_type"] = "update" if st.session_state["is_update"] else "new"
+            st.session_state["app_state"]   = "submitted"
+            st.session_state["cv_data"]     = {}
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Erro ao salvar os dados: {exc}")
 
     st.markdown("""
     <div class="review-card">
@@ -415,10 +463,32 @@ if st.session_state["app_state"] == "review":
         key="lgpd_aceito",
     )
 
-    if not lgpd_aceito:
-        st.caption("☝️ Marque a caixa acima para habilitar o botão de confirmação.")
-
     st.markdown("<hr style='border:none;border-top:1.5px solid #DBEAFE;margin:1rem 0'>", unsafe_allow_html=True)
+
+    # ── Dialog de confirmação LGPD (aparece quando clica sem marcar) ────────
+    if st.session_state.get("_lgpd_dialog"):
+        st.markdown("""
+        <div class="lgpd-dialog">
+          <div class="lgpd-dialog-icon">⚠️</div>
+          <div class="lgpd-dialog-title">Confirmação de LGPD pendente</div>
+          <div class="lgpd-dialog-text">
+            Você não marcou o aceite da Política de Privacidade.<br>
+            Gostaria de confirmar que <strong>aceita o tratamento dos seus dados pessoais</strong>
+            conforme a LGPD (Lei nº 13.709/2018)?
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        col_sim, col_nao = st.columns(2)
+        with col_sim:
+            if st.button("✅  Sim, aceito os termos", use_container_width=True,
+                         type="primary", key="lgpd_sim_btn"):
+                st.session_state.pop("_lgpd_dialog", None)
+                _do_save("sim")
+        with col_nao:
+            if st.button("❌  Não, prosseguir sem aceitar", use_container_width=True,
+                         key="lgpd_nao_btn"):
+                st.session_state.pop("_lgpd_dialog", None)
+                _do_save("não")
 
     col_confirm, col_back = st.columns([3, 1])
     with col_confirm:
@@ -426,49 +496,24 @@ if st.session_state["app_state"] == "review":
             "✅  Confirmo meus Dados",
             use_container_width=True,
             type="primary",
-            disabled=not lgpd_aceito,
         )
     with col_back:
         voltar = st.button("← Voltar", use_container_width=True)
 
     if voltar:
         st.session_state.pop("lgpd_aceito", None)
-        # Se veio do upload (novo currículo sendo atualizado), volta para upload.
-        # Caso contrário (novo cadastro ou retorno direto pelo telefone), volta para phone.
+        st.session_state.pop("_lgpd_dialog", None)
         prev = st.session_state.get("_review_origin", "phone")
         st.session_state["app_state"] = prev
         st.rerun()
 
     if confirmar:
-        d_final = {
-            **d,
-            "nome": nome.strip(), "email": email.strip(),
-            "telefone": telefone.strip(), "cidade_estado": cidade.strip(),
-            "formacao": formacao.strip(), "experiencia": exp.strip(),
-            "habilidades": skills.strip(), "idiomas": idiomas.strip(),
-        }
-        try:
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-            if st.session_state["is_update"]:
-                update_cv_by_phone(st.session_state["found_phone"], d_final, ts)
-                log_access(telefone.strip(), nome.strip(), "atualizou_curriculo")
-            else:
-                processed = get_processed_files()
-                if d_final.get("arquivo") not in processed:
-                    batch_insert_cvs([(d_final, ts)])
-                log_access(telefone.strip(), nome.strip(), "enviou_curriculo")
-
-            # Registra aceite LGPD no log
-            log_access(telefone.strip(), nome.strip(), "aceite_lgpd")
-
-            _csv_data.clear()
-            st.session_state.pop("lgpd_aceito", None)
-            st.session_state["submit_type"]   = "update" if st.session_state["is_update"] else "new"
-            st.session_state["app_state"]     = "submitted"
-            st.session_state["cv_data"]       = {}
+        if lgpd_aceito:
+            _do_save("sim")
+        else:
+            st.session_state["_lgpd_dialog"] = True
             st.rerun()
-        except Exception as exc:
-            st.error(f"Erro ao salvar os dados: {exc}")
+
     st.stop()
 
 
