@@ -207,8 +207,8 @@ st.markdown("""
 def _csv_data():
     try:
         import pandas as pd
-        from utils.database import get_all_cvs
-        df = get_all_cvs()
+        from utils.database import get_latest_cvs
+        df = get_latest_cvs()
         return df.to_csv(index=False).encode("utf-8") if not df.empty else None
     except Exception:
         return None

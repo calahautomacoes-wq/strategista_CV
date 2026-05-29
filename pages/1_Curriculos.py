@@ -183,15 +183,25 @@ st.markdown("""
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 @st.cache_data(ttl=60)
-def load():
+def load_latest():
+    """Dados para exibição: um registro por candidato (mais recente)."""
     try:
-        from utils.database import get_all_cvs
-        return get_all_cvs()
+        from utils.database import get_latest_cvs
+        return get_latest_cvs()
     except Exception as exc:
         st.error(f"Erro ao carregar dados: {exc}")
         return pd.DataFrame()
 
-df = load()
+@st.cache_data(ttl=60)
+def load_all():
+    """Histórico completo para exportação em CSV."""
+    try:
+        from utils.database import get_all_cvs
+        return get_all_cvs()
+    except Exception as exc:
+        return pd.DataFrame()
+
+df = load_latest()
 
 if df is None or df.empty:
     st.info("Nenhum currículo analisado ainda. Vá à página inicial e clique em **Enviar CV** para fazer upload e analisar.")
@@ -199,10 +209,11 @@ if df is None or df.empty:
         st.switch_page("main.py")
     st.stop()
 
-# ── CSV Download ───────────────────────────────────────────────────────────────
-csv_bytes = df.to_csv(index=False).encode("utf-8")
+# ── CSV Download (histórico completo) ─────────────────────────────────────────
+df_all = load_all()
+csv_bytes = (df_all if not df_all.empty else df).to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="⬇️  Baixar CSV",
+    label="⬇️  Baixar CSV (histórico completo)",
     data=csv_bytes,
     file_name="curriculos_strategista.csv",
     mime="text/csv",

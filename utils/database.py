@@ -120,40 +120,64 @@ def clear_all_cvs() -> None:
     _get_client().table(_TABLE).delete().neq("arquivo", "").execute()
 
 
-def get_all_cvs() -> pd.DataFrame:
-    """Return all CV records as a DataFrame ordered by score desc."""
+_RENAME = {
+    "data_analise":  "Data de Análise",
+    "arquivo":       "Arquivo",
+    "nome":          "Nome",
+    "email":         "Email",
+    "telefone":      "Telefone",
+    "cidade_estado": "Cidade/Estado",
+    "formacao":      "Formação",
+    "experiencia":   "Experiência",
+    "habilidades":   "Habilidades",
+    "idiomas":       "Idiomas",
+    "resumo":        "Resumo",
+    "nota":          "Nota",
+    "justificativa": "Justificativa",
+    "sexo":          "Sexo",
+    "lgpd":          "LGPD",
+}
+
+
+def _build_df(data: list) -> pd.DataFrame:
+    """Converte lista de registros para DataFrame renomeado."""
+    df = pd.DataFrame(data)
+    df = df.rename(columns=_RENAME)
+    df["Nota"] = pd.to_numeric(df["Nota"], errors="coerce")
+    keep = list(_RENAME.values())
+    return df[[c for c in keep if c in df.columns]]
+
+
+def get_latest_cvs() -> pd.DataFrame:
+    """Retorna apenas o registro mais recente por telefone, ordenado por nota."""
     resp = (
         _get_client()
         .table(_TABLE)
         .select("*")
-        .order("nota", desc=True)
+        .order("data_analise", desc=True)   # mais recente primeiro
         .execute()
     )
     if not resp.data:
-        return pd.DataFrame(columns=_COLUMNS)
+        return pd.DataFrame(columns=list(_RENAME.values()))
 
-    df = pd.DataFrame(resp.data)
-    rename = {
-        "data_analise":  "Data de Análise",
-        "arquivo":       "Arquivo",
-        "nome":          "Nome",
-        "email":         "Email",
-        "telefone":      "Telefone",
-        "cidade_estado": "Cidade/Estado",
-        "formacao":      "Formação",
-        "experiencia":   "Experiência",
-        "habilidades":   "Habilidades",
-        "idiomas":       "Idiomas",
-        "resumo":        "Resumo",
-        "nota":          "Nota",
-        "justificativa": "Justificativa",
-        "sexo":          "Sexo",
-        "lgpd":          "LGPD",
-    }
-    df = df.rename(columns=rename)
-    df["Nota"] = pd.to_numeric(df["Nota"], errors="coerce")
-    keep = list(rename.values())
-    return df[[c for c in keep if c in df.columns]]
+    df = _build_df(resp.data)
+    # Mantém só a linha mais recente por telefone (já vem ordenada desc)
+    df = df.drop_duplicates(subset=["Telefone"], keep="first")
+    return df.sort_values("Nota", ascending=False).reset_index(drop=True)
+
+
+def get_all_cvs() -> pd.DataFrame:
+    """Retorna todos os registros (histórico completo), ordenado por data desc."""
+    resp = (
+        _get_client()
+        .table(_TABLE)
+        .select("*")
+        .order("data_analise", desc=True)
+        .execute()
+    )
+    if not resp.data:
+        return pd.DataFrame(columns=list(_RENAME.values()))
+    return _build_df(resp.data)
 
 
 # ── Logs de acesso ────────────────────────────────────────────────────────────
