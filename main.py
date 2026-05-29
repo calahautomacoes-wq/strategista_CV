@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
@@ -15,173 +16,150 @@ st.markdown("""
   #MainMenu, footer, header { visibility: hidden; }
   .stApp { background: #EFF6FF; }
 
-  /* Barra admin discreta */
+  /* Admin bar */
   .admin-bar {
-    position: fixed;
-    top: 0.55rem;
-    left: 0.75rem;
-    z-index: 9999;
-    display: flex;
-    gap: 5px;
+    position: fixed; top: 0.55rem; left: 0.75rem;
+    z-index: 9999; display: flex; gap: 5px;
   }
   .admin-link {
-    background: rgba(255,255,255,0.5);
-    color: #94A3B8 !important;
-    font-size: 0.68rem;
-    font-weight: 500;
-    padding: 3px 9px;
-    border-radius: 20px;
-    border: 1px solid #E2E8F0;
-    text-decoration: none !important;
-    backdrop-filter: blur(4px);
-    transition: all 0.18s;
-    line-height: 1.6;
+    background: rgba(255,255,255,0.5); color: #94A3B8 !important;
+    font-size: 0.68rem; font-weight: 500; padding: 3px 9px;
+    border-radius: 20px; border: 1px solid #E2E8F0;
+    text-decoration: none !important; backdrop-filter: blur(4px);
+    transition: all 0.18s; line-height: 1.6;
   }
   .admin-link:hover {
-    background: rgba(255,255,255,0.92);
-    color: #475569 !important;
+    background: rgba(255,255,255,0.92); color: #475569 !important;
     border-color: #CBD5E1;
   }
 
   /* Hero */
   .hero {
     background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 65%, #3B82F6 100%);
-    border-radius: 24px;
-    padding: 3rem 2rem 2.5rem;
+    border-radius: 24px; padding: 3rem 2rem 2.5rem;
     margin: 2rem 0 1.8rem;
     box-shadow: 0 8px 40px rgba(37,99,235,0.28);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+    text-align: center; position: relative; overflow: hidden;
   }
   .hero::before {
-    content: '';
-    position: absolute;
+    content: ''; position: absolute;
     width: 300px; height: 300px; border-radius: 50%;
-    background: rgba(255,255,255,0.05);
-    top: -80px; right: -60px;
+    background: rgba(255,255,255,0.05); top: -80px; right: -60px;
   }
   .hero span { font-size: 2.6rem; display: block; margin-bottom: 0.4rem; }
-  .hero h1 { color: #fff; font-size: 1.9rem; font-weight: 800; margin: 0 0 0.4rem; letter-spacing: -0.5px; }
-  .hero p  { color: #BFDBFE; font-size: 0.92rem; margin: 0; line-height: 1.65; }
+  .hero h1   { color: #fff; font-size: 1.9rem; font-weight: 800; margin: 0 0 0.4rem; }
+  .hero p    { color: #BFDBFE; font-size: 0.92rem; margin: 0; line-height: 1.65; }
 
   /* Card genérico */
   .card {
-    background: white;
-    border-radius: 20px;
+    background: white; border-radius: 20px;
     padding: 2rem 1.8rem 1.8rem;
     box-shadow: 0 4px 24px rgba(37,99,235,0.09);
-    border: 1px solid #DBEAFE;
-    margin-bottom: 1.4rem;
+    border: 1px solid #DBEAFE; margin-bottom: 1.4rem;
   }
-  .card-title {
-    font-size: 1.05rem; font-weight: 700; color: #1E3A8A;
-    margin-bottom: 0.25rem; text-align: center;
+  .card-title { font-size: 1.05rem; font-weight: 700; color: #1E3A8A; margin-bottom: 0.25rem; text-align: center; }
+  .card-desc  { font-size: 0.82rem; color: #64748B; text-align: center; margin-bottom: 1.4rem; }
+
+  /* Input de telefone */
+  .phone-wrapper {
+    display: flex; align-items: stretch;
+    border: 1.5px solid #DBEAFE; border-radius: 12px;
+    overflow: hidden; background: #F8FAFC;
+    margin-bottom: 1.2rem;
   }
-  .card-desc {
-    font-size: 0.82rem; color: #64748B;
-    text-align: center; margin-bottom: 1.4rem;
+  .phone-prefix {
+    background: #EFF6FF; color: #1E3A8A;
+    font-weight: 700; font-size: 0.95rem;
+    padding: 0 14px; display: flex; align-items: center;
+    white-space: nowrap; border-right: 1.5px solid #DBEAFE;
+    gap: 6px;
   }
+  /* Remove border do input dentro do wrapper */
+  .phone-wrapper div[data-testid="stTextInput"] input {
+    border: none !important; background: transparent !important;
+    border-radius: 0 !important; font-size: 1rem !important;
+  }
+  .phone-wrapper div[data-testid="stTextInput"] > div {
+    border: none !important; background: transparent !important;
+  }
+
+  /* Card de retorno (usuário existente) */
+  .return-card {
+    background: linear-gradient(135deg, #ECFDF5, #F0FDF4);
+    border: 1.5px solid #6EE7B7; border-radius: 20px;
+    padding: 1.8rem 2rem; margin-bottom: 1.2rem;
+  }
+  .return-greeting { font-size: 1.3rem; font-weight: 800; color: #065F46; margin-bottom: 0.3rem; }
+  .return-subtitle { font-size: 0.85rem; color: #047857; margin-bottom: 1.2rem; }
+
+  /* Dados do candidato (read-only) */
+  .data-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0.7rem; margin-bottom: 1.2rem;
+  }
+  .data-item { background: white; border-radius: 10px; padding: 0.6rem 0.9rem; border: 1px solid #D1FAE5; }
+  .data-label { font-size: 0.68rem; font-weight: 600; color: #059669; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+  .data-value { font-size: 0.88rem; color: #1E3A8A; font-weight: 500; word-break: break-word; }
+  .data-item.full { grid-column: 1 / -1; }
 
   /* Card de revisão */
   .review-card {
-    background: white;
-    border-radius: 20px;
-    padding: 2rem 2rem 1.5rem;
+    background: white; border-radius: 20px; padding: 2rem 2rem 1.5rem;
     box-shadow: 0 4px 24px rgba(37,99,235,0.09);
-    border: 1.5px solid #93C5FD;
-    margin-bottom: 1.4rem;
+    border: 1.5px solid #93C5FD; margin-bottom: 1.4rem;
   }
-  .review-header {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 0.3rem;
-  }
-  .review-title { font-size: 1.1rem; font-weight: 800; color: #1E3A8A; }
+  .review-title { font-size: 1.1rem; font-weight: 800; color: #1E3A8A; margin-bottom: 0.3rem; }
   .review-desc  { font-size: 0.83rem; color: #64748B; margin-bottom: 1.5rem; line-height: 1.5; }
-  .review-divider {
-    border: none; border-top: 1.5px solid #DBEAFE;
-    margin: 1.2rem 0 1.2rem;
+
+  /* Agradecimento */
+  .thank-you {
+    background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+    border: 1.5px solid #6EE7B7; border-radius: 20px;
+    padding: 3rem 2rem; text-align: center; margin-bottom: 1.5rem;
   }
+  .thank-you .ty-icon { font-size: 3.5rem; margin-bottom: 0.6rem; display: block; }
+  .thank-you h2 { color: #065F46; font-size: 1.5rem; font-weight: 800; margin: 0 0 0.5rem; }
+  .thank-you p  { color: #047857; font-size: 0.92rem; margin: 0; line-height: 1.7; }
 
   /* Botão primário */
   button[data-testid="stBaseButton-primary"],
   div[data-testid="stButton"] button[kind="primary"] {
-    background: #2563EB !important;
-    background-image: none !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: 14px !important;
-    font-weight: 700 !important;
-    font-size: 1rem !important;
-    padding: 0.75rem 2rem !important;
+    background: #2563EB !important; background-image: none !important;
+    color: #fff !important; border: none !important;
+    border-radius: 14px !important; font-weight: 700 !important;
+    font-size: 1rem !important; padding: 0.75rem 2rem !important;
     box-shadow: 0 4px 16px rgba(37,99,235,0.32) !important;
-    transition: background 0.2s !important;
   }
   button[data-testid="stBaseButton-primary"]:hover { background: #1D4ED8 !important; }
 
   /* Botão secundário */
   button[data-testid="stBaseButton-secondary"],
   div[data-testid="stButton"] button[kind="secondary"] {
-    background: #F8FAFC !important;
-    background-image: none !important;
-    color: #64748B !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 10px !important;
-    font-weight: 500 !important;
-    font-size: 0.85rem !important;
+    background: #F8FAFC !important; background-image: none !important;
+    color: #64748B !important; border: 1px solid #E2E8F0 !important;
+    border-radius: 10px !important; font-weight: 500 !important; font-size: 0.85rem !important;
   }
 
-  /* Agradecimento */
-  .thank-you {
-    background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
-    border: 1.5px solid #6EE7B7;
-    border-radius: 20px;
-    padding: 3rem 2rem;
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-  .thank-you .ty-icon { font-size: 3.5rem; margin-bottom: 0.6rem; display: block; }
-  .thank-you h2 { color: #065F46; font-size: 1.5rem; font-weight: 800; margin: 0 0 0.5rem; }
-  .thank-you p  { color: #047857; font-size: 0.92rem; margin: 0; line-height: 1.7; }
-
-  /* Inputs do formulário */
+  /* Inputs */
   div[data-testid="stTextInput"] input,
   div[data-testid="stTextArea"] textarea {
-    border-radius: 10px;
-    border: 1.5px solid #DBEAFE;
-    font-size: 0.9rem;
-    background: #F8FAFC;
-  }
-  div[data-testid="stTextInput"] input:focus,
-  div[data-testid="stTextArea"] textarea:focus {
-    border-color: #2563EB;
-    background: white;
+    border-radius: 10px; border: 1.5px solid #DBEAFE;
+    font-size: 0.9rem; background: #F8FAFC;
   }
   div[data-testid="stFileUploader"] label { display: none; }
 
-  /* Download button admin */
+  /* Download button */
   div[data-testid="stDownloadButton"] button {
-    background: rgba(255,255,255,0.5) !important;
-    background-image: none !important;
-    color: #94A3B8 !important;
-    font-size: 0.68rem !important;
-    font-weight: 500 !important;
-    padding: 3px 9px !important;
-    border-radius: 20px !important;
-    border: 1px solid #E2E8F0 !important;
-    box-shadow: none !important;
-    min-height: unset !important;
-    line-height: 1.6 !important;
-  }
-  div[data-testid="stDownloadButton"] button:hover {
-    background: rgba(255,255,255,0.92) !important;
-    color: #475569 !important;
-    border-color: #CBD5E1 !important;
+    background: rgba(255,255,255,0.5) !important; background-image: none !important;
+    color: #94A3B8 !important; font-size: 0.68rem !important;
+    font-weight: 500 !important; padding: 3px 9px !important;
+    border-radius: 20px !important; border: 1px solid #E2E8F0 !important;
+    box-shadow: none !important; min-height: unset !important; line-height: 1.6 !important;
   }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Barra admin discreta ──────────────────────────────────────────────────────
+# ── Admin bar ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="admin-bar">
   <a class="admin-link" href="/Curriculos" target="_self">📄 Ver CVs</a>
@@ -216,44 +194,134 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Inicializar estados ───────────────────────────────────────────────────────
-if "app_state" not in st.session_state:
-    st.session_state["app_state"] = "upload"   # upload | review | submitted
-if "cv_data" not in st.session_state:
-    st.session_state["cv_data"] = {}
+# app_state: "phone" | "returning" | "upload" | "review" | "submitted"
+for k, v in [("app_state","phone"), ("cv_data",{}), ("found_phone",""),
+              ("is_update",False), ("submit_type","new")]:
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+def _fmt_phone(raw: str) -> str:
+    """Formata dígitos como +55 (DD) NNNNN-NNNN."""
+    d = re.sub(r"\D", "", raw)
+    if d.startswith("55") and len(d) > 11:
+        d = d[2:]
+    if len(d) == 11:
+        return f"+55 ({d[:2]}) {d[2:7]}-{d[7:]}"
+    if len(d) == 10:
+        return f"+55 ({d[:2]}) {d[2:6]}-{d[6:]}"
+    return f"+55 {d}"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ESTADO: submitted — Tela de agradecimento
+# ESTADO: submitted
 # ═══════════════════════════════════════════════════════════════════════════════
 if st.session_state["app_state"] == "submitted":
-    st.markdown("""
-    <div class="thank-you">
-      <span class="ty-icon">✅</span>
-      <h2>Dados confirmados!</h2>
-      <p>Seu currículo foi recebido com sucesso.<br>
-         Nossa equipe irá analisar seu perfil e, se houver compatibilidade,<br>
-         entraremos em contato em breve.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    if st.session_state["submit_type"] == "returning":
+        msg = """
+        <div class="thank-you">
+          <span class="ty-icon">👋</span>
+          <h2>Tudo certo!</h2>
+          <p>Seus dados estão atualizados em nossa base.<br>
+             Entraremos em contato em breve se houver uma oportunidade para você.</p>
+        </div>"""
+    else:
+        msg = """
+        <div class="thank-you">
+          <span class="ty-icon">✅</span>
+          <h2>Currículo recebido!</h2>
+          <p>Muito obrigado pelo seu interesse.<br>
+             Nossa equipe irá analisar seu perfil e, se houver compatibilidade,<br>
+             entraremos em contato em breve.</p>
+        </div>"""
+    st.markdown(msg, unsafe_allow_html=True)
     _, col_btn, _ = st.columns([1, 2, 1])
     with col_btn:
-        if st.button("📤  Enviar outro currículo", use_container_width=True, type="primary"):
-            st.session_state["app_state"] = "upload"
-            st.session_state["cv_data"]   = {}
+        if st.button("📤  Novo envio", use_container_width=True, type="primary"):
+            for k, v in [("app_state","phone"),("cv_data",{}),("found_phone",""),
+                         ("is_update",False),("submit_type","new")]:
+                st.session_state[k] = v
             st.rerun()
     st.stop()
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ESTADO: review — Revisão e edição dos dados extraídos
+# ESTADO: returning — usuário já cadastrado
+# ═══════════════════════════════════════════════════════════════════════════════
+if st.session_state["app_state"] == "returning":
+    from utils.database import log_access
+    d    = st.session_state["cv_data"]
+    nome = d.get("nome") or "candidato"
+
+    st.markdown(f"""
+    <div class="return-card">
+      <div class="return-greeting">Olá, {nome}! 👋</div>
+      <div class="return-subtitle">
+        Encontramos seu cadastro. Confira se seus dados estão corretos e clique em <strong>Avançar</strong>.
+      </div>
+      <div class="data-grid">
+        <div class="data-item">
+          <div class="data-label">📧 E-mail</div>
+          <div class="data-value">{d.get('email') or '—'}</div>
+        </div>
+        <div class="data-item">
+          <div class="data-label">📱 Telefone</div>
+          <div class="data-value">{d.get('telefone') or '—'}</div>
+        </div>
+        <div class="data-item">
+          <div class="data-label">📍 Cidade / Estado</div>
+          <div class="data-value">{d.get('cidade_estado') or '—'}</div>
+        </div>
+        <div class="data-item">
+          <div class="data-label">🌐 Idiomas</div>
+          <div class="data-value">{d.get('idiomas') or '—'}</div>
+        </div>
+        <div class="data-item full">
+          <div class="data-label">🎓 Formação</div>
+          <div class="data-value">{d.get('formacao') or '—'}</div>
+        </div>
+        <div class="data-item full">
+          <div class="data-label">💼 Experiência</div>
+          <div class="data-value">{d.get('experiencia') or '—'}</div>
+        </div>
+        <div class="data-item full">
+          <div class="data-label">🛠️ Habilidades</div>
+          <div class="data-value">{d.get('habilidades') or '—'}</div>
+        </div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_av, col_at = st.columns(2)
+    with col_av:
+        if st.button("✅  Avançar", use_container_width=True, type="primary"):
+            log_access(st.session_state["found_phone"], nome, "confirmou_dados")
+            st.session_state["submit_type"] = "returning"
+            st.session_state["app_state"]   = "submitted"
+            st.rerun()
+    with col_at:
+        if st.button("🔄  Atualizar Currículo", use_container_width=True):
+            log_access(st.session_state["found_phone"], nome, "iniciou_atualizacao")
+            st.session_state["is_update"]  = True
+            st.session_state["app_state"]  = "upload"
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("← Voltar", type="secondary"):
+        st.session_state["app_state"] = "phone"
+        st.rerun()
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ESTADO: review — revisão dos dados extraídos pelo candidato
 # ═══════════════════════════════════════════════════════════════════════════════
 if st.session_state["app_state"] == "review":
+    from utils.database import get_processed_files, batch_insert_cvs, update_cv_by_phone, log_access
     d = st.session_state["cv_data"]
 
     st.markdown("""
     <div class="review-card">
-      <div class="review-header">
-        <span style="font-size:1.5rem">🔍</span>
-        <span class="review-title">Confirme seus dados</span>
-      </div>
+      <div class="review-title">🔍 Confirme seus dados</div>
       <p class="review-desc">
         Extraímos as informações abaixo do seu currículo automaticamente.<br>
         <strong>Revise, corrija se necessário</strong> e confirme para concluir o envio.
@@ -264,99 +332,157 @@ if st.session_state["app_state"] == "review":
     with st.form("review_form"):
         col1, col2 = st.columns(2)
         with col1:
-            nome     = st.text_input("👤 Nome completo",  value=d.get("nome", ""))
-            email    = st.text_input("📧 E-mail",          value=d.get("email", ""))
-            telefone = st.text_input("📱 Telefone",        value=d.get("telefone", ""))
-            cidade   = st.text_input("📍 Cidade / Estado", value=d.get("cidade_estado", ""))
-            idiomas  = st.text_input("🌐 Idiomas",         value=d.get("idiomas", ""))
+            nome     = st.text_input("👤 Nome completo",   value=d.get("nome", ""))
+            email    = st.text_input("📧 E-mail",           value=d.get("email", ""))
+            telefone = st.text_input("📱 Telefone",         value=d.get("telefone", "") or st.session_state.get("found_phone",""))
+            cidade   = st.text_input("📍 Cidade / Estado",  value=d.get("cidade_estado", ""))
+            idiomas  = st.text_input("🌐 Idiomas",          value=d.get("idiomas", ""))
         with col2:
-            formacao = st.text_area("🎓 Formação acadêmica",      value=d.get("formacao", ""),    height=110)
-            exp      = st.text_area("💼 Experiência profissional", value=d.get("experiencia", ""), height=110)
-            skills   = st.text_area("🛠️ Habilidades",              value=d.get("habilidades", ""), height=110)
+            formacao = st.text_area("🎓 Formação acadêmica",       value=d.get("formacao", ""),    height=110)
+            exp      = st.text_area("💼 Experiência profissional",  value=d.get("experiencia", ""), height=110)
+            skills   = st.text_area("🛠️ Habilidades",               value=d.get("habilidades", ""), height=110)
 
-        st.markdown("<hr class='review-divider'>", unsafe_allow_html=True)
+        st.markdown("<hr style='border:none;border-top:1.5px solid #DBEAFE;margin:1.2rem 0'>", unsafe_allow_html=True)
 
         col_confirm, col_back = st.columns([3, 1])
         with col_confirm:
-            confirmar = st.form_submit_button(
-                "✅  Confirmo meus Dados",
-                use_container_width=True,
-                type="primary",
-            )
+            confirmar = st.form_submit_button("✅  Confirmo meus Dados", use_container_width=True, type="primary")
         with col_back:
-            voltar = st.form_submit_button(
-                "← Refazer envio",
-                use_container_width=True,
-            )
+            voltar = st.form_submit_button("← Voltar", use_container_width=True)
 
     if voltar:
-        st.session_state["app_state"] = "upload"
-        st.session_state["cv_data"]   = {}
+        st.session_state["app_state"] = "upload" if st.session_state["is_update"] else "phone"
         st.rerun()
 
     if confirmar:
-        # Atualiza os dados com o que o candidato editou
         d_final = {
-            **d,  # preserva nota, resumo, justificativa, arquivo
-            "nome":          nome.strip(),
-            "email":         email.strip(),
-            "telefone":      telefone.strip(),
-            "cidade_estado": cidade.strip(),
-            "formacao":      formacao.strip(),
-            "experiencia":   exp.strip(),
-            "habilidades":   skills.strip(),
-            "idiomas":       idiomas.strip(),
+            **d,
+            "nome": nome.strip(), "email": email.strip(),
+            "telefone": telefone.strip(), "cidade_estado": cidade.strip(),
+            "formacao": formacao.strip(), "experiencia": exp.strip(),
+            "habilidades": skills.strip(), "idiomas": idiomas.strip(),
         }
         try:
-            from utils.database import get_processed_files, batch_insert_cvs
             ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-            processed = get_processed_files()
-            if d_final.get("arquivo") not in processed:
-                batch_insert_cvs([(d_final, ts)])
+            if st.session_state["is_update"]:
+                update_cv_by_phone(st.session_state["found_phone"], d_final, ts)
+                log_access(telefone.strip(), nome.strip(), "atualizou_curriculo")
+            else:
+                processed = get_processed_files()
+                if d_final.get("arquivo") not in processed:
+                    batch_insert_cvs([(d_final, ts)])
+                log_access(telefone.strip(), nome.strip(), "enviou_curriculo")
+
             _csv_data.clear()
-            st.session_state["app_state"] = "submitted"
-            st.session_state["cv_data"]   = {}
+            st.session_state["submit_type"] = "update" if st.session_state["is_update"] else "new"
+            st.session_state["app_state"]   = "submitted"
+            st.session_state["cv_data"]     = {}
             st.rerun()
         except Exception as exc:
             st.error(f"Erro ao salvar os dados: {exc}")
-
     st.stop()
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ESTADO: upload — Formulário de envio de arquivo
+# ESTADO: upload — envio de arquivo
+# ═══════════════════════════════════════════════════════════════════════════════
+if st.session_state["app_state"] == "upload":
+    titulo = "🔄 Atualize seu currículo" if st.session_state["is_update"] else "📎 Anexe seu currículo"
+    desc   = "Envie a versão mais recente do seu CV (PDF ou DOCX)." if st.session_state["is_update"] \
+             else "Formatos aceitos: PDF ou DOCX (Word)."
+
+    st.markdown(f'<div class="card"><div class="card-title">{titulo}</div><div class="card-desc">{desc}</div>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("CV", type=["pdf","docx"], accept_multiple_files=False, label_visibility="collapsed")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if uploaded_file:
+        _, col_btn, _ = st.columns([1, 2, 1])
+        with col_btn:
+            enviar = st.button("📤  Enviar Currículo", use_container_width=True, type="primary")
+
+        if st.session_state["is_update"]:
+            if st.button("← Voltar", type="secondary"):
+                st.session_state["app_state"] = "returning"
+                st.rerun()
+
+        if enviar:
+            with st.spinner("Processando seu currículo..."):
+                try:
+                    from utils.cv_parser import extract_text
+                    from utils.cv_analyzer import analyze_cv
+                    content = uploaded_file.read()
+                    text    = extract_text(content, uploaded_file.name)
+                    data    = analyze_cv(text, uploaded_file.name)
+                    # Preserva o telefone já informado
+                    if not data.get("telefone") and st.session_state.get("found_phone"):
+                        data["telefone"] = st.session_state["found_phone"]
+                    st.session_state["cv_data"]   = data
+                    st.session_state["app_state"] = "review"
+                except Exception as exc:
+                    st.error(f"Erro ao processar o arquivo: {exc}")
+                    st.stop()
+            st.rerun()
+    else:
+        if st.button("← Voltar", type="secondary"):
+            st.session_state["app_state"] = "phone"
+            st.rerun()
+    st.stop()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ESTADO: phone — tela inicial com input de telefone
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="card-title">📎 Anexe seu currículo</div>', unsafe_allow_html=True)
-st.markdown('<div class="card-desc">Formatos aceitos: PDF ou DOCX (Word)</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-title">📱 Informe seu telefone</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-desc">Seu número será usado para identificar seu cadastro.</div>', unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader(
-    "Currículo", type=["pdf", "docx"],
-    accept_multiple_files=False,
-    label_visibility="collapsed",
-)
-st.markdown("</div>", unsafe_allow_html=True)
+# Input de telefone com prefixo 🇧🇷 +55
+st.markdown('<div class="phone-wrapper">', unsafe_allow_html=True)
+col_prefix, col_number = st.columns([1.1, 4])
+with col_prefix:
+    st.markdown('<div class="phone-prefix">🇧🇷 +55</div>', unsafe_allow_html=True)
+with col_number:
+    phone_raw = st.text_input(
+        "Telefone", placeholder="11 99999-9999",
+        label_visibility="collapsed",
+        max_chars=15,
+        key="phone_input",
+    )
+st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-if uploaded_file:
+if phone_raw and phone_raw.strip():
+    digits = re.sub(r"\D", "", phone_raw)
+    phone_ok = len(digits) >= 10
+
     _, col_btn, _ = st.columns([1, 2, 1])
     with col_btn:
-        enviar = st.button("📤  Enviar Currículo", use_container_width=True, type="primary")
+        avancar = st.button(
+            "Avançar →",
+            use_container_width=True,
+            type="primary",
+            disabled=not phone_ok,
+        )
 
-    if enviar:
-        # Mostra spinner enquanto a IA extrai e analisa
-        with st.spinner("Processando seu currículo..."):
-            try:
-                from utils.cv_parser import extract_text
-                from utils.cv_analyzer import analyze_cv
+    if not phone_ok:
+        st.caption("⚠️ Informe DDD + número (mínimo 10 dígitos).")
 
-                content = uploaded_file.read()
-                text    = extract_text(content, uploaded_file.name)
-                data    = analyze_cv(text, uploaded_file.name)
+    if avancar and phone_ok:
+        from utils.database import get_cv_by_phone, log_access
+        phone_fmt = _fmt_phone(digits)
 
-                st.session_state["cv_data"]   = data
-                st.session_state["app_state"] = "review"
+        with st.spinner("Verificando cadastro..."):
+            existing = get_cv_by_phone(digits)
 
-            except Exception as exc:
-                st.error(f"Erro ao processar o arquivo: {exc}")
-                st.stop()
+        if existing:
+            nome_existente = existing.get("nome") or "candidato"
+            log_access(phone_fmt, nome_existente, "acessou_sistema")
+            st.session_state["cv_data"]     = existing
+            st.session_state["found_phone"] = phone_fmt
+            st.session_state["app_state"]   = "returning"
+        else:
+            log_access(phone_fmt, "", "novo_acesso")
+            st.session_state["found_phone"] = phone_fmt
+            st.session_state["app_state"]   = "upload"
 
         st.rerun()
