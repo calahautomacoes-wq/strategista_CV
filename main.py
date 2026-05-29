@@ -590,9 +590,17 @@ if st.session_state["app_state"] == "upload":
 # ═══════════════════════════════════════════════════════════════════════════════
 # ESTADO: phone — tela inicial com input de telefone
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _only_digits():
+    """Remove qualquer caractere não-numérico do campo de telefone."""
+    val = st.session_state.get("phone_input", "")
+    filtered = re.sub(r"\D", "", val)
+    if filtered != val:
+        st.session_state["phone_input"] = filtered
+
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.markdown('<div class="card-title">📱 Informe seu telefone</div>', unsafe_allow_html=True)
-st.markdown('<div class="card-desc">Seu número será usado para identificar seu cadastro.</div>', unsafe_allow_html=True)
+st.markdown('<div class="card-desc">Somente números — DDD + número (ex: 11999999999).</div>', unsafe_allow_html=True)
 
 # Input de telefone com prefixo 🇧🇷 +55
 st.markdown('<div class="phone-wrapper">', unsafe_allow_html=True)
@@ -601,31 +609,31 @@ with col_prefix:
     st.markdown('<div class="phone-prefix">🇧🇷 +55</div>', unsafe_allow_html=True)
 with col_number:
     phone_raw = st.text_input(
-        "Telefone", placeholder="11 99999-9999",
+        "Telefone", placeholder="Ex: 11999999999",
         label_visibility="collapsed",
-        max_chars=15,
+        max_chars=11,
         key="phone_input",
+        on_change=_only_digits,
     )
 st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-if phone_raw and phone_raw.strip():
-    digits = re.sub(r"\D", "", phone_raw)
-    phone_ok = len(digits) >= 10
+digits   = re.sub(r"\D", "", phone_raw) if phone_raw else ""
+phone_ok = len(digits) >= 10
 
-    _, col_btn, _ = st.columns([1, 2, 1])
-    with col_btn:
-        avancar = st.button(
-            "Avançar →",
-            use_container_width=True,
-            type="primary",
-            disabled=not phone_ok,
-        )
+_, col_btn, _ = st.columns([1, 2, 1])
+with col_btn:
+    avancar = st.button(
+        "Avançar →",
+        use_container_width=True,
+        type="primary",
+        disabled=not phone_ok,
+    )
 
-    if not phone_ok:
-        st.caption("⚠️ Informe DDD + número (mínimo 10 dígitos).")
+if phone_raw and not phone_ok:
+    st.caption("⚠️ Informe DDD + número (mínimo 10 dígitos).")
 
-    if avancar and phone_ok:
+if avancar and phone_ok:
         from utils.database import get_cv_by_phone, log_access
         phone_fmt = _fmt_phone(digits)
 
