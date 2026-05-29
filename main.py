@@ -372,7 +372,7 @@ if st.session_state["app_state"] == "review":
         st.session_state["_rev_arquivo"]  = d.get("arquivo", "")
         st.session_state["rev_nome"]      = d.get("nome", "")
         st.session_state["rev_email"]     = d.get("email", "")
-        st.session_state["rev_telefone"]  = d.get("telefone", "") or st.session_state.get("found_phone", "")
+        st.session_state["rev_telefone"]  = st.session_state.get("found_phone", "") or d.get("telefone", "")
         _cidade, _estado = _split_cidade_estado(
             d.get("cidade_estado", "") or
             ", ".join(filter(None, [d.get("cidade",""), d.get("estado","")]))
