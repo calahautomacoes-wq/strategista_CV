@@ -37,7 +37,8 @@ retorne APENAS um JSON válido, sem texto adicional, com esta estrutura:
   "nome": "nome completo",
   "email": "email ou vazio",
   "telefone": "telefone ou vazio",
-  "cidade_estado": "cidade e estado ou vazio",
+  "cidade": "nome da cidade ou vazio",
+  "estado": "sigla do estado com 2 letras maiúsculas (ex: SP, RJ, MG) ou vazio",
   "formacao": "formação acadêmica resumida em uma linha",
   "experiencia": "experiências profissionais resumidas em 2-3 linhas",
   "habilidades": "principais habilidades técnicas e comportamentais",
@@ -74,6 +75,12 @@ def analyze_cv(cv_text: str, filename: str) -> dict:
 
     data = json.loads(raw)
     data["arquivo"] = filename
+
+    # Combina cidade + estado em cidade_estado para compatibilidade com o banco
+    cidade = data.get("cidade", "").strip()
+    estado = data.get("estado", "").strip().upper()
+    partes = [p for p in [cidade, estado] if p]
+    data["cidade_estado"] = ", ".join(partes)
 
     try:
         data["nota"] = float(data.get("nota", 0))

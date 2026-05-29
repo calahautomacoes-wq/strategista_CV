@@ -237,6 +237,17 @@ for k, v in [("app_state","phone"), ("cv_data",{}), ("found_phone",""),
     if k not in st.session_state:
         st.session_state[k] = v
 
+def _split_cidade_estado(value: str) -> tuple[str, str]:
+    """Separa 'São Paulo, SP' em ('São Paulo', 'SP')."""
+    if not value:
+        return "", ""
+    for sep in [", ", " - ", " / ", "/", ","]:
+        if sep in value:
+            parts = value.split(sep, 1)
+            return parts[0].strip(), parts[1].strip()
+    return value.strip(), ""
+
+
 def _fmt_phone(raw: str) -> str:
     """Formata dígitos como +55 (DD) NNNNN-NNNN."""
     d = re.sub(r"\D", "", raw)
@@ -362,7 +373,12 @@ if st.session_state["app_state"] == "review":
         st.session_state["rev_nome"]      = d.get("nome", "")
         st.session_state["rev_email"]     = d.get("email", "")
         st.session_state["rev_telefone"]  = d.get("telefone", "") or st.session_state.get("found_phone", "")
-        st.session_state["rev_cidade"]    = d.get("cidade_estado", "")
+        _cidade, _estado = _split_cidade_estado(
+            d.get("cidade_estado", "") or
+            ", ".join(filter(None, [d.get("cidade",""), d.get("estado","")]))
+        )
+        st.session_state["rev_cidade"]    = _cidade
+        st.session_state["rev_estado"]    = _estado
         st.session_state["rev_idiomas"]   = d.get("idiomas", "")
         st.session_state["rev_formacao"]  = d.get("formacao", "")
         st.session_state["rev_exp"]       = d.get("experiencia", "")
@@ -377,7 +393,10 @@ if st.session_state["app_state"] == "review":
             "nome":          st.session_state["rev_nome"].strip(),
             "email":         st.session_state["rev_email"].strip(),
             "telefone":      st.session_state["rev_telefone"].strip(),
-            "cidade_estado": st.session_state["rev_cidade"].strip(),
+            "cidade_estado": ", ".join(filter(None, [
+                                 st.session_state["rev_cidade"].strip(),
+                                 st.session_state["rev_estado"].strip().upper(),
+                             ])),
             "formacao":      st.session_state["rev_formacao"].strip(),
             "experiencia":   st.session_state["rev_exp"].strip(),
             "habilidades":   st.session_state["rev_skills"].strip(),
@@ -420,11 +439,15 @@ if st.session_state["app_state"] == "review":
 
     col1, col2 = st.columns(2)
     with col1:
-        nome     = st.text_input("👤 Nome completo",   key="rev_nome")
-        email    = st.text_input("📧 E-mail",           key="rev_email")
-        telefone = st.text_input("📱 Telefone",         key="rev_telefone")
-        cidade   = st.text_input("📍 Cidade / Estado",  key="rev_cidade")
-        idiomas  = st.text_input("🌐 Idiomas",          key="rev_idiomas")
+        nome     = st.text_input("👤 Nome completo",  key="rev_nome")
+        email    = st.text_input("📧 E-mail",          key="rev_email")
+        telefone = st.text_input("📱 Telefone",        key="rev_telefone")
+        cidade   = st.text_input("📍 Cidade",          key="rev_cidade")
+        col_est, col_idi = st.columns([1, 2])
+        with col_est:
+            estado  = st.text_input("🗺️ Estado (UF)", key="rev_estado", max_chars=2)
+        with col_idi:
+            idiomas = st.text_input("🌐 Idiomas",     key="rev_idiomas")
     with col2:
         formacao = st.text_area("🎓 Formação acadêmica",       key="rev_formacao", height=110)
         exp      = st.text_area("💼 Experiência profissional",  key="rev_exp",      height=110)
