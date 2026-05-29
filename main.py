@@ -358,7 +358,7 @@ if st.session_state["app_state"] == "review":
         st.session_state["rev_formacao"]  = d.get("formacao", "")
         st.session_state["rev_exp"]       = d.get("experiencia", "")
         st.session_state["rev_skills"]    = d.get("habilidades", "")
-        st.session_state["lgpd_aceito"]   = False
+        st.session_state.pop("lgpd_aceito", None)  # força desmarcado ao carregar novo CV
 
     st.markdown("""
     <div class="review-card">
@@ -432,7 +432,7 @@ if st.session_state["app_state"] == "review":
         voltar = st.button("← Voltar", use_container_width=True)
 
     if voltar:
-        st.session_state["lgpd_aceito"] = False
+        st.session_state.pop("lgpd_aceito", None)
         st.session_state["app_state"] = "upload" if st.session_state["is_update"] else "phone"
         st.rerun()
 
@@ -459,7 +459,7 @@ if st.session_state["app_state"] == "review":
             log_access(telefone.strip(), nome.strip(), "aceite_lgpd")
 
             _csv_data.clear()
-            st.session_state["lgpd_aceito"]   = False
+            st.session_state.pop("lgpd_aceito", None)
             st.session_state["submit_type"]   = "update" if st.session_state["is_update"] else "new"
             st.session_state["app_state"]     = "submitted"
             st.session_state["cv_data"]       = {}
