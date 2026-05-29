@@ -341,7 +341,7 @@ with tab_tabela:
 
     # Colunas e ordem para exibição na tabela
     colunas_tabela = [
-        "Nome", "Nota", "Resumo", "Cidade/Estado",
+        "Nome", "Sexo", "Nota", "Resumo", "Cidade/Estado",
         "Formação", "Experiência", "Habilidades",
         "Idiomas", "Email", "Telefone",
         "Justificativa", "Data de Análise", "Arquivo",

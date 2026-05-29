@@ -44,8 +44,13 @@ retorne APENAS um JSON válido, sem texto adicional, com esta estrutura:
   "idiomas": "idiomas e níveis ou vazio",
   "resumo": "resumo profissional do candidato em 3-4 frases completas",
   "nota": 7,
-  "justificativa": "justificativa objetiva da nota de 1 a 10"
-}"""
+  "justificativa": "justificativa objetiva da nota de 1 a 10",
+  "sexo": "masculino"
+}
+
+Para o campo "sexo": analise o primeiro nome do candidato e infira o gênero mais provável \
+com base em nomes tipicamente brasileiros. Use "masculino", "feminino" ou "prefiro não dizer". \
+Em caso de dúvida (nome ambíguo, estrangeiro ou não identificado), use "prefiro não dizer"."""
 
 
 def analyze_cv(cv_text: str, filename: str) -> dict:
@@ -74,5 +79,14 @@ def analyze_cv(cv_text: str, filename: str) -> dict:
         data["nota"] = float(data.get("nota", 0))
     except (TypeError, ValueError):
         data["nota"] = 0.0
+
+    # Normaliza o campo sexo
+    sexo_raw = str(data.get("sexo", "")).strip().lower()
+    if sexo_raw in ("masculino", "male", "m"):
+        data["sexo"] = "masculino"
+    elif sexo_raw in ("feminino", "female", "f"):
+        data["sexo"] = "feminino"
+    else:
+        data["sexo"] = "prefiro não dizer"
 
     return data

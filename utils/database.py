@@ -16,7 +16,7 @@ _client: Client | None = None
 _COLUMNS = [
     "arquivo", "data_analise", "nome", "email", "telefone",
     "cidade_estado", "formacao", "experiencia", "habilidades",
-    "idiomas", "resumo", "nota", "justificativa",
+    "idiomas", "resumo", "nota", "justificativa", "sexo",
 ]
 
 
@@ -83,6 +83,7 @@ def _to_record(data: dict, timestamp: str) -> dict:
         "resumo":        data.get("resumo", ""),
         "nota":          float(data.get("nota", 0) or 0),
         "justificativa": data.get("justificativa", ""),
+        "sexo":          data.get("sexo", "prefiro não dizer"),
     }
 
 
@@ -145,6 +146,7 @@ def get_all_cvs() -> pd.DataFrame:
         "resumo":        "Resumo",
         "nota":          "Nota",
         "justificativa": "Justificativa",
+        "sexo":          "Sexo",
     }
     df = df.rename(columns=rename)
     df["Nota"] = pd.to_numeric(df["Nota"], errors="coerce")
