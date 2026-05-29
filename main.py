@@ -392,7 +392,7 @@ if st.session_state["app_state"] == "review":
             **d,
             "nome":          st.session_state["rev_nome"].strip(),
             "email":         st.session_state["rev_email"].strip(),
-            "telefone":      st.session_state["rev_telefone"].strip(),
+            "telefone":      re.sub(r"\D", "", st.session_state["rev_telefone"]),
             "cidade_estado": ", ".join(filter(None, [
                                  st.session_state["rev_cidade"].strip(),
                                  st.session_state["rev_estado"].strip().upper(),
