@@ -433,7 +433,10 @@ if st.session_state["app_state"] == "review":
 
     if voltar:
         st.session_state.pop("lgpd_aceito", None)
-        st.session_state["app_state"] = "upload" if st.session_state["is_update"] else "phone"
+        # Se veio do upload (novo currículo sendo atualizado), volta para upload.
+        # Caso contrário (novo cadastro ou retorno direto pelo telefone), volta para phone.
+        prev = st.session_state.get("_review_origin", "phone")
+        st.session_state["app_state"] = prev
         st.rerun()
 
     if confirmar:
@@ -502,8 +505,9 @@ if st.session_state["app_state"] == "upload":
                     # Preserva o telefone já informado
                     if not data.get("telefone") and st.session_state.get("found_phone"):
                         data["telefone"] = st.session_state["found_phone"]
-                    st.session_state["cv_data"]   = data
-                    st.session_state["app_state"] = "review"
+                    st.session_state["cv_data"]        = data
+                    st.session_state["_review_origin"] = "upload"
+                    st.session_state["app_state"]      = "review"
                 except Exception as exc:
                     st.error(f"Erro ao processar o arquivo: {exc}")
                     st.stop()
@@ -563,9 +567,11 @@ if phone_raw and phone_raw.strip():
         if existing:
             nome_existente = existing.get("nome") or "candidato"
             log_access(phone_fmt, nome_existente, "acessou_sistema")
-            st.session_state["cv_data"]     = existing
-            st.session_state["found_phone"] = phone_fmt
-            st.session_state["app_state"]   = "returning"
+            st.session_state["cv_data"]       = existing
+            st.session_state["found_phone"]   = phone_fmt
+            st.session_state["is_update"]     = True
+            st.session_state["_review_origin"] = "phone"
+            st.session_state["app_state"]     = "review"
         else:
             log_access(phone_fmt, "", "novo_acesso")
             st.session_state["found_phone"] = phone_fmt
