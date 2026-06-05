@@ -1,0 +1,279 @@
+{
+  "version": "6",
+  "id": "strategista-cv-flow",
+  "name": "StrategisTA - Envio de CV",
+  "groups": [
+    {
+      "id": "start-group",
+      "title": "Inicio",
+      "graphCoordinates": { "x": 100, "y": 200 },
+      "blocks": [
+        {
+          "id": "welcome-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Ola! Bem-vindo ao processo seletivo da StrategisTA" }] },
+              { "type": "p", "children": [{ "text": "Estamos sempre em busca de talentos. Envie seu curriculo e nossa equipe entrara em contato!" }] }
+            ]
+          }
+        },
+        {
+          "id": "ask-phone-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Por favor, informe seu telefone com DDD (somente numeros):" }] }
+            ]
+          }
+        },
+        {
+          "id": "phone-input",
+          "type": "text input",
+          "options": {
+            "labels": { "placeholder": "Ex: 11999999999", "button": "Avancar" },
+            "variableId": "telefone"
+          }
+        }
+      ]
+    },
+    {
+      "id": "check-phone-group",
+      "title": "Verificar Telefone",
+      "graphCoordinates": { "x": 500, "y": 200 },
+      "blocks": [
+        {
+          "id": "http-check-phone",
+          "type": "Webhook",
+          "options": {
+            "webhook": {
+              "url": "https://strategistacv-production.up.railway.app/verificar-telefone",
+              "method": "POST",
+              "headers": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"telefone\": \"{{telefone}}\"}"
+            },
+            "responseVariableMapping": [
+              { "bodyPath": "existe", "variableId": "existe" },
+              { "bodyPath": "dados.nome", "variableId": "nome" },
+              { "bodyPath": "dados.email", "variableId": "email" },
+              { "bodyPath": "dados.cidade_estado", "variableId": "cidade_estado" },
+              { "bodyPath": "dados.formacao", "variableId": "formacao" },
+              { "bodyPath": "dados.experiencia", "variableId": "experiencia" },
+              { "bodyPath": "dados.habilidades", "variableId": "habilidades" },
+              { "bodyPath": "dados.idiomas", "variableId": "idiomas" },
+              { "bodyPath": "dados.resumo", "variableId": "resumo" },
+              { "bodyPath": "dados.nota", "variableId": "nota" },
+              { "bodyPath": "dados.arquivo", "variableId": "arquivo" }
+            ]
+          }
+        },
+        {
+          "id": "condition-exists",
+          "type": "Condition",
+          "items": [
+            {
+              "id": "cond-true",
+              "content": {
+                "logicalOperator": "AND",
+                "comparisons": [
+                  { "variableId": "existe", "comparisonOperator": "Equal to", "value": "true" }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "existing-user-group",
+      "title": "Candidato Existente",
+      "graphCoordinates": { "x": 900, "y": 50 },
+      "blocks": [
+        {
+          "id": "existing-welcome",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Ola, {{nome}}! Encontramos seu cadastro." }] },
+              { "type": "p", "children": [{ "text": "Email: {{email}}" }] },
+              { "type": "p", "children": [{ "text": "Cidade/Estado: {{cidade_estado}}" }] },
+              { "type": "p", "children": [{ "text": "Formacao: {{formacao}}" }] },
+              { "type": "p", "children": [{ "text": "Experiencia: {{experiencia}}" }] }
+            ]
+          }
+        },
+        {
+          "id": "existing-buttons",
+          "type": "Buttons input",
+          "items": [
+            { "id": "btn-confirm", "content": "Meus dados estao corretos" },
+            { "id": "btn-update", "content": "Quero atualizar meu curriculo" }
+          ],
+          "options": { "variableId": "opcao_usuario" }
+        }
+      ]
+    },
+    {
+      "id": "new-user-group",
+      "title": "Novo Candidato - Upload CV",
+      "graphCoordinates": { "x": 900, "y": 400 },
+      "blocks": [
+        {
+          "id": "new-user-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Otimo! Vamos cadastrar seu curriculo." }] },
+              { "type": "p", "children": [{ "text": "Por favor, envie seu arquivo CV em formato PDF ou DOCX:" }] }
+            ]
+          }
+        },
+        {
+          "id": "file-upload-input",
+          "type": "File input",
+          "options": {
+            "labels": { "placeholder": "Clique para enviar o arquivo", "button": "Enviar" },
+            "variableId": "cv_url",
+            "isMultipleAllowed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "analyze-cv-group",
+      "title": "Analisar CV",
+      "graphCoordinates": { "x": 1300, "y": 400 },
+      "blocks": [
+        {
+          "id": "analyzing-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Aguarde, estamos analisando seu curriculo..." }] }
+            ]
+          }
+        },
+        {
+          "id": "http-analyze-cv",
+          "type": "Webhook",
+          "options": {
+            "webhook": {
+              "url": "https://strategistacv-production.up.railway.app/analisar-cv-url",
+              "method": "POST",
+              "headers": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"url\": \"{{cv_url}}\", \"telefone\": \"{{telefone}}\"}"
+            },
+            "responseVariableMapping": [
+              { "bodyPath": "nome", "variableId": "nome" },
+              { "bodyPath": "email", "variableId": "email" },
+              { "bodyPath": "cidade_estado", "variableId": "cidade_estado" },
+              { "bodyPath": "formacao", "variableId": "formacao" },
+              { "bodyPath": "experiencia", "variableId": "experiencia" },
+              { "bodyPath": "habilidades", "variableId": "habilidades" },
+              { "bodyPath": "idiomas", "variableId": "idiomas" },
+              { "bodyPath": "resumo", "variableId": "resumo" },
+              { "bodyPath": "nota", "variableId": "nota" },
+              { "bodyPath": "arquivo", "variableId": "arquivo" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "review-group",
+      "title": "Revisar e Confirmar",
+      "graphCoordinates": { "x": 1300, "y": 50 },
+      "blocks": [
+        {
+          "id": "review-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Confira seus dados:" }] },
+              { "type": "p", "children": [{ "text": "Nome: {{nome}}" }] },
+              { "type": "p", "children": [{ "text": "Email: {{email}}" }] },
+              { "type": "p", "children": [{ "text": "Cidade/Estado: {{cidade_estado}}" }] },
+              { "type": "p", "children": [{ "text": "Formacao: {{formacao}}" }] },
+              { "type": "p", "children": [{ "text": "Habilidades: {{habilidades}}" }] },
+              { "type": "p", "children": [{ "text": "Idiomas: {{idiomas}}" }] }
+            ]
+          }
+        },
+        {
+          "id": "lgpd-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Seus dados serao usados exclusivamente para fins de recrutamento e selecao, conforme a Lei 13.709/2018 (LGPD)." }] }
+            ]
+          }
+        },
+        {
+          "id": "lgpd-buttons",
+          "type": "Buttons input",
+          "items": [
+            { "id": "btn-lgpd-sim", "content": "Sim, aceito os termos" },
+            { "id": "btn-lgpd-nao", "content": "Nao aceito" }
+          ],
+          "options": { "variableId": "lgpd_aceito" }
+        }
+      ]
+    },
+    {
+      "id": "save-group",
+      "title": "Salvar e Finalizar",
+      "graphCoordinates": { "x": 1700, "y": 200 },
+      "blocks": [
+        {
+          "id": "http-save",
+          "type": "Webhook",
+          "options": {
+            "webhook": {
+              "url": "https://strategistacv-production.up.railway.app/salvar",
+              "method": "POST",
+              "headers": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\"telefone\": \"{{telefone}}\", \"nome\": \"{{nome}}\", \"email\": \"{{email}}\", \"cidade_estado\": \"{{cidade_estado}}\", \"formacao\": \"{{formacao}}\", \"experiencia\": \"{{experiencia}}\", \"habilidades\": \"{{habilidades}}\", \"idiomas\": \"{{idiomas}}\", \"resumo\": \"{{resumo}}\", \"nota\": 0, \"arquivo\": \"{{arquivo}}\", \"lgpd\": \"{{lgpd_aceito}}\"}"
+            }
+          }
+        },
+        {
+          "id": "thank-you-text",
+          "type": "text",
+          "content": {
+            "richText": [
+              { "type": "p", "children": [{ "text": "Curriculo recebido com sucesso!" }] },
+              { "type": "p", "children": [{ "text": "Muito obrigado pelo seu interesse, {{nome}}! Nossa equipe ira analisar seu perfil e, se houver compatibilidade, entraremos em contato em breve." }] }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variables": [
+    { "id": "telefone", "name": "telefone" },
+    { "id": "existe", "name": "existe" },
+    { "id": "nome", "name": "nome" },
+    { "id": "email", "name": "email" },
+    { "id": "cidade_estado", "name": "cidade_estado" },
+    { "id": "formacao", "name": "formacao" },
+    { "id": "experiencia", "name": "experiencia" },
+    { "id": "habilidades", "name": "habilidades" },
+    { "id": "idiomas", "name": "idiomas" },
+    { "id": "resumo", "name": "resumo" },
+    { "id": "nota", "name": "nota" },
+    { "id": "arquivo", "name": "arquivo" },
+    { "id": "cv_url", "name": "cv_url" },
+    { "id": "opcao_usuario", "name": "opcao_usuario" },
+    { "id": "lgpd_aceito", "name": "lgpd_aceito" }
+  ],
+  "edges": [
+    { "id": "e1", "from": { "groupId": "start-group", "blockId": "phone-input" }, "to": { "groupId": "check-phone-group" } },
+    { "id": "e2", "from": { "groupId": "check-phone-group", "blockId": "condition-exists", "conditionItemId": "cond-true" }, "to": { "groupId": "existing-user-group" } },
+    { "id": "e3", "from": { "groupId": "check-phone-group", "blockId": "condition-exists" }, "to": { "groupId": "new-user-group" } },
+    { "id": "e4", "from": { "groupId": "existing-user-group", "blockId": "existing-buttons", "itemId": "btn-confirm" }, "to": { "groupId": "review-group" } },
+    { "id": "e5", "from": { "groupId": "existing-user-group", "blockId": "existing-buttons", "itemId": "btn-update" }, "to": { "groupId": "new-user-group" } },
+    { "id": "e6", "from": { "groupId": "new-user-group", "blockId": "file-upload-input" }, "to": { "groupId": "analyze-cv-group" } },
+    { "id": "e7", "from": { "groupId": "analyze-cv-group", "blockId": "http-analyze-cv" }, "to": { "groupId": "review-group" } },
+    { "id": "e8", "from": { "groupId": "review-group", "blockId": "lgpd-buttons" }, "to": { "groupId": "save-group" } }
+  ]
+}

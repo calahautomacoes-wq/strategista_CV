@@ -1,8 +1,9 @@
 """
 StrategisTA — API para integração com Typebot
-Endpoints: /health, /verificar-telefone, /analisar-cv, /salvar
+Endpoints: /health, /verificar-telefone, /analisar-cv, /analisar-cv-url, /salvar
 """
 import re
+import httpx
 from datetime import datetime
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -23,6 +24,11 @@ app.add_middleware(
 
 class TelefoneRequest(BaseModel):
     telefone: str
+
+
+class AnalisarUrlRequest(BaseModel):
+    url: str
+    telefone: str = ""
 
 
 class SalvarRequest(BaseModel):
@@ -82,6 +88,50 @@ async def analisar_cv(arquivo: UploadFile = File(...)):
     try:
         texto = extract_text(content, arquivo.filename)
         dados  = analyze_cv(texto, arquivo.filename)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {exc}")
+
+    return dados
+
+
+@app.post("/analisar-cv-url")
+async def analisar_cv_url(body: AnalisarUrlRequest):
+    """Recebe URL de arquivo do Typebot, baixa, extrai texto e analisa com Claude."""
+    from utils.cv_parser import extract_text
+    from utils.cv_analyzer import analyze_cv
+
+    url = body.url.strip()
+    if not url:
+        raise HTTPException(status_code=422, detail="URL do arquivo não informada.")
+
+    # Detecta extensão pela URL
+    filename = url.split("?")[0].split("/")[-1] or "curriculo.pdf"
+    extensao = filename.lower().split(".")[-1]
+    if extensao not in ("pdf", "docx"):
+        # Tenta inferir pelo Content-Type
+        extensao = "pdf"
+        filename = "curriculo.pdf"
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            content = resp.content
+
+        # Detecta pelo Content-Type se necessário
+        ct = resp.headers.get("content-type", "")
+        if "word" in ct or "docx" in ct:
+            filename = "curriculo.docx"
+        else:
+            filename = "curriculo.pdf"
+
+        texto = extract_text(content, filename)
+        dados  = analyze_cv(texto, filename)
+
+        # Garante que o telefone esteja no dado se a IA não encontrou
+        if not dados.get("telefone") and body.telefone:
+            dados["telefone"] = re.sub(r"\D", "", body.telefone)
+
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Erro ao processar arquivo: {exc}")
 
