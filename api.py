@@ -68,10 +68,24 @@ def verificar_telefone(body: TelefoneRequest):
     dados = get_cv_by_phone(digits)
     if dados:
         log_access(digits, dados.get("nome", ""), "acessou_sistema_typebot")
-        return {"existe": True, "dados": dados}
+        # Retorna estrutura plana para compatibilidade com Typebot bot-engine
+        # (bodyPath aninhado como "dados.nome" não é suportado)
+        return {
+            "existe": True,
+            "nome":         dados.get("nome", ""),
+            "email":        dados.get("email", ""),
+            "cidade_estado": dados.get("cidade_estado", ""),
+            "formacao":     dados.get("formacao", ""),
+            "experiencia":  dados.get("experiencia", ""),
+            "habilidades":  dados.get("habilidades", ""),
+            "idiomas":      dados.get("idiomas", ""),
+            "resumo":       dados.get("resumo", ""),
+            "nota":         str(dados.get("nota", "")),
+            "arquivo":      dados.get("arquivo", ""),
+        }
 
     log_access(digits, "", "novo_acesso_typebot")
-    return {"existe": False, "dados": None}
+    return {"existe": False}
 
 
 @app.post("/analisar-cv")
