@@ -73,27 +73,36 @@ def analyze_cv(cv_text: str, filename: str) -> dict:
         lines = raw.splitlines()
         raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
-    data = json.loads(raw)
-    data["arquivo"] = filename
+    # 1. Garanta que a resposta da IA seja tratada como um objeto, não como texto
+    try:
+        # Se a resposta vier como string, transformamos em dicionário
+        dados_limpos = json.loads(raw)
+    except:
+        # Caso já seja um objeto, apenas usamos ele
+        dados_limpos = raw
+
+    dados_limpos["arquivo"] = filename
 
     # Combina cidade + estado em cidade_estado para compatibilidade com o banco
-    cidade = data.get("cidade", "").strip()
-    estado = data.get("estado", "").strip().upper()
+    cidade = dados_limpos.get("cidade", "").strip()
+    estado = dados_limpos.get("estado", "").strip().upper()
     partes = [p for p in [cidade, estado] if p]
-    data["cidade_estado"] = ", ".join(partes)
+    dados_limpos["cidade_estado"] = ", ".join(partes)
 
     try:
-        data["nota"] = float(data.get("nota", 0))
+        dados_limpos["nota"] = float(dados_limpos.get("nota", 0))
     except (TypeError, ValueError):
-        data["nota"] = 0.0
+        dados_limpos["nota"] = 0.0
 
     # Normaliza o campo sexo
-    sexo_raw = str(data.get("sexo", "")).strip().lower()
+    sexo_raw = str(dados_limpos.get("sexo", "")).strip().lower()
     if sexo_raw in ("masculino", "male", "m"):
-        data["sexo"] = "masculino"
+        dados_limpos["sexo"] = "masculino"
     elif sexo_raw in ("feminino", "female", "f"):
-        data["sexo"] = "feminino"
+        dados_limpos["sexo"] = "feminino"
     else:
-        data["sexo"] = "prefiro não dizer"
+        dados_limpos["sexo"] = "prefiro não dizer"
 
-    return data
+    # 2. O RETORNO FINAL: Deve ser apenas o objeto, sem a palavra "response"
+    return dados_limpos
+
